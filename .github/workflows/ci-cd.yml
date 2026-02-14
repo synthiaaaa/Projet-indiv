@@ -1,0 +1,35 @@
+name: Pipeline DevSecOps - La Petite Maison de l'Epouvante
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x]
+
+    steps:
+    - name: Récupération du code
+      uses: actions/checkout@v3
+
+    - name: Installation de Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+
+    - name: Installation des dépendances Backend
+      working-directory: ./server
+      run: npm install
+
+    - name: Scan de Vulnérabilités (SAST)
+      working-directory: ./server
+      run: npm audit --audit-level=high
+
+    - name: Exécution des tests automatisés (Jest)
+      working-directory: ./server
+      run: npm test

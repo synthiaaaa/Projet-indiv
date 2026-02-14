@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-epouvante
+spec:
+  replicas: 3 # Haute disponibilité (Auto-scaling)
+  selector:
+    matchLabels:
+      app: backend-api
+  template:
+    metadata:
+      labels:
+        app: backend-api
+    spec:
+      containers:
+      - name: backend-node
+        image: mon-registre/backend-epouvante:v1
+        ports:
+        - containerPort: 5000
