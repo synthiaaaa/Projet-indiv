@@ -18,6 +18,5 @@ jobs:
 
       - name: Build and Push
         run: |
-          # Le "." à la fin est OBLIGATOIRE, il indique le dossier courant
           docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/backend:v12 ./server
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/backend:v12
