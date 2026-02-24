@@ -1,10 +1,10 @@
-name: CI/CD DevSecOps Final
+name: CI/CD DevSecOps Epouvante
 on:
   push:
     branches: [ main ]
 
 jobs:
-  test-build-deploy:
+  validate-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -15,10 +15,10 @@ jobs:
         run: |
           cd server
           npm install
-          npm test || echo "Tests terminés pour POC"
+          npm test || echo "Tests terminés pour validation POC"
 
-      # --- TEST 2 : SÉCURITÉ (Audit des vulnérabilités) ---
-      - name: Sécurité - Audit NPM
+      # --- TEST 2 : SÉCURITÉ (Audit NPM) ---
+      - name: Sécurité - Audit des vulnérabilités
         run: |
           cd server
           npm audit --audit-level=high || true
@@ -30,11 +30,11 @@ jobs:
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
-      # Build utilisant une action officielle pour éviter 'requires 1 argument'
+      # Build via Action officielle pour supprimer l'erreur d'argument Docker
       - name: Build and Push Image
         uses: docker/build-push-action@v4
         with:
-          context: ./server
+          context: .
           push: true
           tags: monregistreepouvante.azurecr.io/backend:v12
 
@@ -43,12 +43,12 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # --- TEST 3 : SUPERVISION (Vérification Santé AKS) ---
+      # --- TEST 3 : SUPERVISION (Santé AKS) ---
       - name: Déploiement & Supervision AKS
         run: |
           az aks get-credentials --resource-group rg_epouvante --name ClusterEpouvante
           kubectl set image deployment/backend-epouvante backend-node=monregistreepouvante.azurecr.io/backend:v12
-          # Respect du Quota Azure (6 cœurs)
+          # Gestion du quota étudiant (limite 6 cœurs)
           kubectl scale deployment backend-epouvante --replicas=1
-          echo "Vérification de la santé du déploiement..."
+          echo "Vérification de la mise en ligne publique..."
           kubectl rollout status deployment/backend-epouvante --timeout=60s
