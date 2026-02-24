@@ -1,35 +1,42 @@
-name: Pipeline DevSecOps - La Petite Maison de l'Epouvante
-
-on:
-  push:
-    branches: [ "main", "master" ]
-  pull_request:
-    branches: [ "main", "master" ]
+name: CI/CD DevSecOps - Blockbuster
+on: [push]
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [18.x]
-
     steps:
-    - name: Récupération du code
-      uses: actions/checkout@v3
+      - uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      - run: npm install && npm test # Tests unitaires (Jest)
 
-    - name: Installation de Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v3
-      with:
-        node-version: ${{ matrix.node-version }}
+  load-test:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run K6 Load Test
+        uses: grafana/setup-k6-action@v1
+      - run: k6 run server/test-charge.js # Test de charge intégré
 
-    - name: Installation des dépendances Backend
-      working-directory: ./server
-      run: npm install
-
-    - name: Scan de Vulnérabilités (SAST)
-      working-directory: ./server
-      run: npm audit --audit-level=high || true
-
-    - name: Exécution des tests automatisés (Jest)
-      working-directory: ./server
-      run: npm test
+  deploy-to-aks:
+    needs: load-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Build & Push Image
+        run: |
+          az acr login --name monregistreepouvante
+          docker build -t monregistreepouvante.azurecr.io/backend:v2 ./server
+          docker push monregistreepouvante.azurecr.io/backend:v2
+      - name: Deploy to AKS
+        uses: azure/k8s-deploy@v1
+        with:
+          manifests: |
+            k8s/deployment.yaml
+          images: |
+            monregistreepouvante.azurecr.io/backend:v2

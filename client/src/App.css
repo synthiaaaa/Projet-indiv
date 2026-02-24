@@ -1,75 +1,131 @@
-/* --- Variables globales (Thème Pop-Culture / Lumineux) --- */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@300;400;600&display=swap');
+
 :root {
-  --bg-color: #f4f4f9; 
-  --text-main: #333333; 
-  --accent-color: #6a1b9a; /* Violet Geek */
-  --secondary-color: #ff9800; /* Orange vif */
-  --card-bg: #ffffff;
+  --bg-dark: #121212;
+  --card-bg: #1e1e1e;
+  --ritual-red: #8b0000;
+  --gold-accent: #c5a059;
 }
 
-body { margin: 0; font-family: 'Segoe UI', Tahoma, sans-serif; background-color: var(--bg-color); color: var(--text-main); }
+body {
+  background-color: var(--bg-dark);
+  color: #e0e0e0;
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+}
 
-/* --- Header --- */
-.site-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 5%; background-color: var(--card-bg); box-shadow: 0 4px 6px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; }
-.logo { font-size: 1.5rem; font-weight: bold; color: var(--accent-color); }
-.site-header ul { list-style: none; display: flex; gap: 1.5rem; align-items: center; margin: 0; padding: 0;}
-.nav-btn { background: none; border: none; font-size: 1rem; font-weight: bold; color: var(--text-main); cursor: pointer; transition: color 0.3s; }
-.nav-btn:hover { color: var(--accent-color); }
+/* Navigation */
+.site-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 15px 40px;
+  background: #000;
+  border-bottom: 1px solid var(--ritual-red);
+  align-items: center;
+}
 
-/* Badge Panier & Sécurité */
-.cart-badge { background-color: var(--secondary-color); color: white; padding: 3px 8px; border-radius: 50%; font-size: 0.9rem; margin-left: 5px; }
-.btn-login { background-color: #e0e0e0; border: none; padding: 8px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; transition: 0.3s; }
-.btn-login.logged-in { background-color: #4CAF50; color: white; }
+.logo {
+  font-family: 'Cinzel', serif;
+  font-weight: bold;
+  color: #fff;
+  cursor: pointer;
+  font-size: 1.2rem;
+}
 
-/* --- Hero Banner --- */
-.hero-banner { text-align: center; padding: 5rem 2rem; background: linear-gradient(135deg, var(--accent-color), #ab47bc); color: white; }
-.hero-content h1 { font-size: 3rem; margin-bottom: 1rem; margin-top: 0; }
-.hero-content p { font-size: 1.2rem; opacity: 0.9; margin: 0;}
+.logo-symbol { margin-right: 10px; }
 
-/* --- Catalogue --- */
-.catalog-section { padding: 4rem 5%; }
-.section-title { text-align: center; font-size: 2.2rem; margin-bottom: 3rem; color: var(--accent-color); }
-.product-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; }
-.product-card { background-color: var(--card-bg); border-radius: 12px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.08); transition: transform 0.3s; display: flex; flex-direction: column; }
-.product-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(106, 27, 154, 0.2); }
-.card-image { position: relative; height: 250px; width: 100%; }
-.card-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.badge { position: absolute; top: 10px; right: 10px; background-color: var(--secondary-color); color: white; padding: 5px 10px; font-size: 0.8rem; font-weight: bold; border-radius: 6px; }
-.card-content { padding: 1.5rem; text-align: center; display: flex; flex-direction: column; flex-grow: 1; }
-.card-content h3 { margin: 0 0 10px 0; color: var(--accent-color); font-size: 1.1rem; }
-.desc { color: #666; font-size: 0.9rem; line-height: 1.4; margin-bottom: 1.5rem; flex-grow: 1; }
-.card-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #eee; padding-top: 1rem; }
-.price { font-size: 1.3rem; font-weight: bold; color: var(--text-main); }
-.btn-buy { background-color: var(--accent-color); color: white; border: none; padding: 10px 15px; font-weight: bold; border-radius: 6px; cursor: pointer; transition: 0.3s; }
-.btn-buy:hover { background-color: var(--secondary-color); }
+.top-nav { display: flex; gap: 25px; align-items: center; }
+.nav-link { font-size: 0.85rem; color: #888; cursor: pointer; }
+.btn-nav-red { background: var(--ritual-red); border: none; color: white; padding: 6px 15px; cursor: pointer; border-radius: 2px; }
 
-/* --- Page Panier --- */
-.cart-page, .page-container { padding: 4rem 10%; min-height: 60vh; }
-.cart-page h2, .page-container h2 { color: var(--accent-color); border-bottom: 2px solid var(--secondary-color); padding-bottom: 10px; margin-top: 0; }
-.security-warning { background-color: #fff3cd; color: #856404; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; border-left: 5px solid #ffeeba; }
-.cart-content { display: flex; flex-direction: column; gap: 2rem; }
-.cart-items { list-style: none; padding: 0; margin: 0; }
-.cart-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: white; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); font-weight: bold; }
-.btn-remove { background: none; border: none; cursor: pointer; margin-left: 15px; font-size: 1.2rem; }
-.cart-summary { text-align: right; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-.btn-checkout-final { background-color: #4CAF50; color: white; border: none; padding: 15px 30px; font-size: 1.1rem; font-weight: bold; border-radius: 8px; cursor: pointer; margin-top: 10px; }
-.btn-checkout-final:disabled { background-color: #ccc; cursor: not-allowed; }
+/* Layout Split */
+.main-layout {
+  display: flex;
+  padding: 40px;
+  gap: 50px;
+}
 
-/* --- Tunnel de Commande & Formulaires --- */
-.checkout-form { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 600px; margin: 0 auto; }
-.form-group { margin-bottom: 1.5rem; text-align: left; }
-.form-group label { display: block; font-weight: bold; margin-bottom: 0.5rem; color: var(--accent-color); }
-.form-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; box-sizing: border-box; }
-.btn-pay { background-color: #4CAF50; color: white; border: none; padding: 15px 30px; font-size: 1.2rem; font-weight: bold; border-radius: 8px; cursor: pointer; width: 100%; margin-bottom: 10px; }
-.btn-pay:hover { background-color: #45a049; }
-.btn-cancel { background-color: transparent; color: #777; border: 1px solid #ccc; padding: 10px 30px; font-size: 1rem; border-radius: 8px; cursor: pointer; width: 100%; }
-.btn-cancel:hover { background-color: #f4f4f4; }
+/* Sidebar Gauche (Auth) */
+.left-sidebar { width: 350px; }
 
-/* --- Page de Succès --- */
-.text-center { text-align: center; }
-.success-box { background: white; padding: 3rem; border-radius: 12px; box-shadow: 0 5px 20px rgba(76, 175, 80, 0.2); max-width: 600px; margin: 0 auto; border-top: 5px solid #4CAF50; }
-.success-box h2 { color: #4CAF50; font-size: 2.5rem; margin-top: 0; }
-.btn-continue { background-color: var(--accent-color); color: white; border: none; padding: 12px 25px; font-size: 1.1rem; font-weight: bold; border-radius: 6px; cursor: pointer; margin-top: 2rem; transition: 0.3s; }
-.btn-continue:hover { background-color: var(--secondary-color); }
+.ritual-card {
+  background: var(--card-bg);
+  border: 1px solid #333;
+  padding: 30px;
+  box-shadow: 8px 8px 0px var(--ritual-red);
+}
 
-.site-footer { text-align: center; padding: 2rem; background-color: white; margin-top: 4rem; color: #777; }
+.ritual-title {
+  color: var(--gold-accent);
+  font-family: 'Cinzel', serif;
+  font-size: 1.3rem;
+  margin-bottom: 25px;
+  border-bottom: 1px solid #333;
+  padding-bottom: 10px;
+}
+
+.input-group { margin-bottom: 20px; display: flex; flex-direction: column; }
+.input-group label { font-size: 0.8rem; color: #666; margin-bottom: 5px; }
+.input-group input { 
+  background: transparent; border: none; border-bottom: 1px solid #444; color: white; padding: 8px 0; outline: none;
+}
+
+.auth-footer { font-size: 0.75rem; color: #888; cursor: pointer; margin: 20px 0; }
+
+/* BOUTON S'IDENTIFIER ROUGE */
+.btn-action-horror {
+  background: var(--ritual-red);
+  color: white;
+  border: none;
+  padding: 15px;
+  width: 100%;
+  font-family: 'Cinzel', serif;
+  font-weight: bold;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.btn-action-horror:hover { background: #b00000; transform: translateY(-2px); }
+
+/* Grille Articles à droite */
+.content-area { flex: 1; }
+
+.horizontal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); /* Alignement gauche à droite */
+  gap: 25px;
+}
+
+/* Style des cartes produits (dans ProductList) */
+.product-card {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  padding: 15px;
+  text-align: center;
+  transition: 0.3s;
+}
+
+.product-card:hover { border-color: var(--ritual-red); }
+
+/* Bouton Ajouter au panier (dans les articles) */
+.btn-add-cart-item {
+  background: #4a0000;
+  color: #fff;
+  border: none;
+  padding: 10px;
+  width: 100%;
+  margin-top: 15px;
+  cursor: pointer;
+}
+
+/* Footer */
+.footer-status {
+  text-align: center;
+  padding: 20px;
+  font-size: 0.8rem;
+  color: #444;
+  border-top: 1px solid #222;
+  margin-top: 50px;
+}
+

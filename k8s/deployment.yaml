@@ -14,6 +14,6 @@ spec:
     spec:
       containers:
       - name: backend-node
-        image: mon-registre/backend-epouvante:v1
+        image: monregistreepouvante.azurecr.io/backend:v1
         ports:
         - containerPort: 5000
