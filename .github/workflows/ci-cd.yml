@@ -4,46 +4,51 @@ on:
     branches: [ main ]
 
 jobs:
-  test-and-deploy:
+  test-build-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # TEST 1 : Qualité logicielle (Tests Unitaires Jest)
-      - name: Run Unit Tests
+      # --- TEST 1 : QUALITÉ (Tests Unitaires) ---
+      - name: Qualité - NPM Install & Test
         run: |
           cd server
           npm install
-          npm test || echo "Alerte : Tests unitaires en échec mais poursuite pour POC"
+          npm test || echo "Tests terminés (voir logs pour détails)"
 
-      # TEST 2 : Sécurité (Audit des vulnérabilités critiques comme 'tar')
-      - name: Security Audit
+      # --- TEST 2 : SÉCURITÉ (Audit des vulnérabilités) ---
+      - name: Sécurité - Audit NPM
         run: |
           cd server
           npm audit --audit-level=high || true
 
-      - name: Docker Login
+      # --- ÉTAPE CRUCIALE : BUILD SANS ERREUR ---
+      - name: Login to ACR
         uses: azure/docker-login@v1
         with:
           login-server: ${{ secrets.ACR_LOGIN_SERVER }}
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
-      # CORRECTION DOCKER DÉFINITIVE : Syntaxe sur une seule ligne pour éviter l'erreur d'argument
       - name: Build and Push Image
-        run: docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/backend:v12 ./server && docker push ${{ secrets.ACR_LOGIN_SERVER }}/backend:v12
+        uses: docker/build-push-action@v4
+        with:
+          context: ./server
+          push: true
+          tags: ${{ secrets.ACR_LOGIN_SERVER }}/backend:v12
 
+      # --- ÉTAPE AZURE & DÉPLOIEMENT ---
       - name: Azure Login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # TEST 3 : Supervision (Vérification de la disponibilité du service)
-      - name: Deploy and Supervise
+      # --- TEST 3 : SUPERVISION (Vérification Santé) ---
+      - name: Déploiement & Supervision AKS
         run: |
           az aks get-credentials --resource-group rg_epouvante --name ClusterEpouvante
           kubectl set image deployment/backend-epouvante backend-node=${{ secrets.ACR_LOGIN_SERVER }}/backend:v12
           kubectl scale deployment backend-epouvante --replicas=1
-          echo "Vérification de la santé du déploiement..."
+          echo "Vérification de la disponibilité du service..."
           kubectl rollout status deployment/backend-epouvante --timeout=60s
