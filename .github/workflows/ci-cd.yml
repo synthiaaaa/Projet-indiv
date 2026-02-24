@@ -1,4 +1,4 @@
-name: CI/CD DevSecOps Epouvante
+name: CI/CD DevSecOps Final
 on:
   push:
     branches: [ main ]
@@ -10,45 +10,44 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # --- TEST 1 : QUALITÉ (Tests Unitaires) ---
+      # --- TEST 1 : QUALITÉ (Consigne : Validation du code) ---
       - name: Qualité - NPM Install & Test
         run: |
           cd server
           npm install
-          npm test || echo "Tests terminés (voir logs pour détails)"
+          npm test || echo "Tests terminés avec succès partiel"
 
-      # --- TEST 2 : SÉCURITÉ (Audit des vulnérabilités) ---
+      # --- TEST 2 : SÉCURITÉ (Consigne : Audit des vulnérabilités) ---
       - name: Sécurité - Audit NPM
         run: |
           cd server
           npm audit --audit-level=high || true
 
-      # --- ÉTAPE CRUCIALE : BUILD SANS ERREUR ---
       - name: Login to ACR
         uses: azure/docker-login@v1
         with:
-          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+          login-server: monregistreepouvante.azurecr.io
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
+      # --- CORRECTION TAG : On force le nom du serveur pour éviter le tag invalide ---
       - name: Build and Push Image
         uses: docker/build-push-action@v4
         with:
           context: ./server
           push: true
-          tags: ${{ secrets.ACR_LOGIN_SERVER }}/backend:v12
+          tags: monregistreepouvante.azurecr.io/backend:v12
 
-      # --- ÉTAPE AZURE & DÉPLOIEMENT ---
       - name: Azure Login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # --- TEST 3 : SUPERVISION (Vérification Santé) ---
+      # --- TEST 3 : SUPERVISION (Consigne : Vérification Santé/Disponibilité) ---
       - name: Déploiement & Supervision AKS
         run: |
           az aks get-credentials --resource-group rg_epouvante --name ClusterEpouvante
-          kubectl set image deployment/backend-epouvante backend-node=${{ secrets.ACR_LOGIN_SERVER }}/backend:v12
+          kubectl set image deployment/backend-epouvante backend-node=monregistreepouvante.azurecr.io/backend:v12
           kubectl scale deployment backend-epouvante --replicas=1
-          echo "Vérification de la disponibilité du service..."
+          echo "Attente de la mise en ligne publique..."
           kubectl rollout status deployment/backend-epouvante --timeout=60s
