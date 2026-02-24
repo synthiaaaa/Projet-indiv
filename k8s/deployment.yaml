@@ -19,10 +19,10 @@ spec:
         image: monregistreepouvante.azurecr.io/backend:v12
         ports:
         - containerPort: 5000
-        resources:
-          requests:
-            memory: "128Mi"
-            cpu: "100m"
-          limits:
-            memory: "256Mi"
-            cpu: "200m"
+        # Ajoute ceci pour laisser le temps au serveur de démarrer
+        startupProbe:
+          httpGet:
+            path: /
+            port: 5000
+          failureThreshold: 10
+          periodSeconds: 5
