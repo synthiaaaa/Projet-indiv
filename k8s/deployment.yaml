@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: backend-epouvante
 spec:
-  replicas: 1 # Haute disponibilité (Auto-scaling)
+  replicas: 1  # <--- IMPÉRATIF : Ne mets pas 3
   selector:
     matchLabels:
       app: backend-api
@@ -14,6 +14,6 @@ spec:
     spec:
       containers:
       - name: backend-node
-        image: monregistreepouvante.azurecr.io/backend:v1
+        image: monregistreepouvante.azurecr.io/backend:v12
         ports:
         - containerPort: 5000
