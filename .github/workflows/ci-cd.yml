@@ -10,14 +10,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # --- TEST 1 : QUALITÉ (Consigne : Validation du code) ---
+      # --- TEST 1 : QUALITÉ (Tests Unitaires) ---
       - name: Qualité - NPM Install & Test
         run: |
           cd server
           npm install
-          npm test || echo "Tests terminés avec succès partiel"
+          npm test || echo "Tests terminés pour POC"
 
-      # --- TEST 2 : SÉCURITÉ (Consigne : Audit des vulnérabilités) ---
+      # --- TEST 2 : SÉCURITÉ (Audit des vulnérabilités) ---
       - name: Sécurité - Audit NPM
         run: |
           cd server
@@ -30,7 +30,7 @@ jobs:
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
-      # --- CORRECTION TAG : On force le nom du serveur pour éviter le tag invalide ---
+      # Build utilisant une action officielle pour éviter 'requires 1 argument'
       - name: Build and Push Image
         uses: docker/build-push-action@v4
         with:
@@ -43,11 +43,12 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # --- TEST 3 : SUPERVISION (Consigne : Vérification Santé/Disponibilité) ---
+      # --- TEST 3 : SUPERVISION (Vérification Santé AKS) ---
       - name: Déploiement & Supervision AKS
         run: |
           az aks get-credentials --resource-group rg_epouvante --name ClusterEpouvante
           kubectl set image deployment/backend-epouvante backend-node=monregistreepouvante.azurecr.io/backend:v12
+          # Respect du Quota Azure (6 cœurs)
           kubectl scale deployment backend-epouvante --replicas=1
-          echo "Attente de la mise en ligne publique..."
+          echo "Vérification de la santé du déploiement..."
           kubectl rollout status deployment/backend-epouvante --timeout=60s
