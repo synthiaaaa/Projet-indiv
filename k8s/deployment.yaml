@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: backend-epouvante
 spec:
-  replicas: 3 # Haute disponibilité (Auto-scaling)
+  replicas: 1 # Haute disponibilité (Auto-scaling)
   selector:
     matchLabels:
       app: backend-api
