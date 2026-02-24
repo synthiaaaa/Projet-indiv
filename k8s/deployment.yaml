@@ -3,7 +3,9 @@ kind: Deployment
 metadata:
   name: backend-epouvante
 spec:
-  replicas: 1 # <--- Force à 1 pour ton quota étudiant
+  replicas: 1
+  strategy:
+    type: Recreate  # <--- AJOUTE CECI : Coupe l'ancien pod avant de lancer le nouveau
   selector:
     matchLabels:
       app: backend-api
@@ -17,7 +19,7 @@ spec:
         image: monregistreepouvante.azurecr.io/backend:v12
         ports:
         - containerPort: 5000
-        resources: # Aide le cluster à mieux gérer la mémoire
+        resources:
           requests:
             memory: "128Mi"
             cpu: "100m"
