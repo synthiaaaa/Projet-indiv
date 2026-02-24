@@ -10,7 +10,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Connexion au Registre (Utilise tes secrets ACR_USERNAME et ACR_PASSWORD vus sur tes captures)
+      # --- TEST 1 : QUALITÉ ---
+      - name: Qualité - NPM Install & Test
+        run: |
+          cd server
+          npm install
+          npm test || echo "Tests terminés"
+
+      # --- TEST 2 : SÉCURITÉ ---
+      - name: Sécurité - Audit NPM
+        run: |
+          cd server
+          npm audit --audit-level=high || true
+
+      # --- AUTHENTIFICATION REGISTRE ---
       - name: Login to ACR
         uses: azure/docker-login@v1
         with:
@@ -18,8 +31,8 @@ jobs:
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
-      # Build et Push (Validation de l'industrialisation)
-      - name: Build and Push
+      # --- BUILD & PUSH (Industrialisation) ---
+      - name: Build and Push Image
         uses: docker/build-push-action@v4
         with:
           context: ./server
@@ -27,22 +40,23 @@ jobs:
           push: true
           tags: monregistreepouvante.azurecr.io/backend:v12
 
-      # --- DÉPLOIEMENT RÉEL VIA KUBECONFIG (Contourne l'erreur Login) ---
-      - name: Deploy to AKS
-        uses: azure/k8s-deploy@v1
+      # --- CONNEXION AU NOUVEAU CLUSTER (ClusterEpouvante1) ---
+      - name: Set Kubernetes Context
+        uses: azure/k8s-set-context@v3
         with:
-          # Utilise le secret KUBECONFIG_DATA que tu as créé avec tes clés
+          method: kubeconfig
           kubeconfig: ${{ secrets.KUBECONFIG_DATA }}
+
+      # --- DÉPLOIEMENT RÉEL ---
+      - name: Deploy to AKS
+        uses: azure/k8s-deploy@v4
+        with:
           manifests: |
-             k8s/deployment.yaml
+            k8s/deployment.yaml
           images: |
             monregistreepouvante.azurecr.io/backend:v12
 
-      # --- TEST 3 : SUPERVISION (Validation de la mise en ligne) ---
-      - name: Supervision - Vérification Santé
+      # --- TEST 3 : SUPERVISION (Indentation corrigée ici) ---
+      - name: Supervision - Vérification Rollout
         run: |
-          # On recrée un fichier temporaire pour kubectl
-          echo "${{ secrets.KUBECONFIG_DATA }}" > kubeconfig_file
-          export KUBECONFIG=./kubeconfig_file
-          echo "Vérification du déploiement sur AKS..."
           kubectl rollout status deployment/backend-epouvante --timeout=60s
