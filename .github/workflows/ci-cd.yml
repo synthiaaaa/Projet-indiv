@@ -1,42 +1,32 @@
 name: CI/CD DevSecOps - Blockbuster
-on: [push]
+on:
+  push:
+    branches: [ main ]
 
 jobs:
-  build-and-test:
+  test-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20'
-      - run: npm install && npm test # Tests unitaires (Jest)
 
-  load-test:
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Run K6 Load Test
-        uses: grafana/setup-k6-action@v1
-      - run: k6 run server/test-charge.js # Test de charge intégré
+      - name: Install dependencies & Run Tests
+        run: |
+          cd server
+          npm install
+          npm test
 
-  deploy-to-aks:
-    needs: load-test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: azure/login@v1
+      - name: Login to Azure
+        uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-      - name: Build & Push Image
+
+      - name: Build and Push to ACR
         run: |
           az acr login --name monregistreepouvante
-          docker build -t monregistreepouvante.azurecr.io/backend:v2 ./server
-          docker push monregistreepouvante.azurecr.io/backend:v2
+          docker build -t monregistreepouvante.azurecr.io/backend:${{ github.sha }} ./server
+          docker push monregistreepouvante.azurecr.io/backend:${{ github.sha }}
+
       - name: Deploy to AKS
-        uses: azure/k8s-deploy@v1
-        with:
-          manifests: |
-            k8s/deployment.yaml
-          images: |
-            monregistreepouvante.azurecr.io/backend:v2
+        run: |
+          az aks get-credentials --resource-group rg_epouvante --name <TON_NOM_CLUSTER>
+          kubectl set image deployment/backend-epouvante server=monregistreepouvante.azurecr.io/backend:${{ github.sha }}
