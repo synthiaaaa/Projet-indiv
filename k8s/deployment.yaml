@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: backend-epouvante
 spec:
-  replicas: 1  # <--- IMPÉRATIF : Ne mets pas 3
+  replicas: 1 # <--- Force à 1 pour ton quota étudiant
   selector:
     matchLabels:
       app: backend-api
@@ -17,3 +17,10 @@ spec:
         image: monregistreepouvante.azurecr.io/backend:v12
         ports:
         - containerPort: 5000
+        resources: # Aide le cluster à mieux gérer la mémoire
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
