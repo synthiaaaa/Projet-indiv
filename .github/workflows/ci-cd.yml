@@ -7,7 +7,8 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Docker Login
         uses: azure/docker-login@v1
@@ -20,3 +21,14 @@ jobs:
         run: |
           docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/backend:v12 ./server
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/backend:v12
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to AKS
+        run: |
+          az aks get-credentials --resource-group rg_epouvante --name ClusterEpouvante
+          kubectl set image deployment/backend-epouvante backend-node=${{ secrets.ACR_LOGIN_SERVER }}/backend:v12
+          kubectl scale deployment backend-epouvante --replicas=1
