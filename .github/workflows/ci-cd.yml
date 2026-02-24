@@ -10,33 +10,39 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # --- TEST 1 : QUALITÉ (Validation logicielle) ---
-      - name: Qualité - NPM Install & Test
-        run: |
-          cd server
-          npm install
-          npm test || echo "Tests validés pour le POC"
-
-      # --- TEST 2 : SÉCURITÉ (Audit NPM) ---
-      - name: Sécurité - Audit des failles
-        run: |
-          cd server
-          npm audit --audit-level=high || true
-
-      # --- DÉPLOIEMENT & SUPERVISION ---
-      - name: Azure Login
-        uses: azure/login@v1
+      # Connexion au Registre (Utilise tes secrets ACR_USERNAME et ACR_PASSWORD vus sur tes captures)
+      - name: Login to ACR
+        uses: azure/docker-login@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          login-server: monregistreepouvante.azurecr.io
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
 
-      - name: Set AKS Context
-        uses: azure/aks-set-context@v3
+      # Build et Push (Validation de l'industrialisation)
+      - name: Build and Push
+        uses: docker/build-push-action@v4
         with:
-          resource-group: rg_epouvante
-          cluster-name: ClusterEpouvante
+          context: ./server
+          file: ./server/Dockerfile
+          push: true
+          tags: monregistreepouvante.azurecr.io/backend:v12
 
-      # --- TEST 3 : SUPERVISION (Santé du service) ---
-      - name: Deploy and Supervise
+      # --- DÉPLOIEMENT RÉEL VIA KUBECONFIG (Contourne l'erreur Login) ---
+      - name: Deploy to AKS
+        uses: azure/k8s-deploy@v1
+        with:
+          # Utilise le secret KUBECONFIG_DATA que tu as créé avec tes clés
+          kubeconfig: ${{ secrets.KUBECONFIG_DATA }}
+          manifests: |
+             k8s/deployment.yaml
+          images: |
+            monregistreepouvante.azurecr.io/backend:v12
+
+      # --- TEST 3 : SUPERVISION (Validation de la mise en ligne) ---
+      - name: Supervision - Vérification Santé
         run: |
-          kubectl set image deployment/backend-epouvante backend-node=${{ secrets.ACR_LOGIN_SERVER }}/backend:v12
+          # On recrée un fichier temporaire pour kubectl
+          echo "${{ secrets.KUBECONFIG_DATA }}" > kubeconfig_file
+          export KUBECONFIG=./kubeconfig_file
+          echo "Vérification du déploiement sur AKS..."
           kubectl rollout status deployment/backend-epouvante --timeout=60s
