@@ -19,7 +19,7 @@ jobs:
 
       - name: Build and Push
         run: |
-          # Correction : le chemin ./server est bien spécifié comme argument
+          # Correction : Ajout du chemin ./server après le tag
           docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/backend:v12 ./server
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/backend:v12
 
@@ -31,7 +31,7 @@ jobs:
       - name: Deploy to AKS
         run: |
           az aks get-credentials --resource-group rg_epouvante --name ClusterEpouvante
-          # Utilisation du nom correct : backend-node
+          # Correction : Utilisation du nom réel 'backend-node' identifié précédemment
           kubectl set image deployment/backend-epouvante backend-node=${{ secrets.ACR_LOGIN_SERVER }}/backend:v12
-          # Force le passage à 1 réplica pour contourner le quota Azure
+          # Correction Quota : On reste à 1 réplica pour ne pas saturer les 6 cœurs autorisés
           kubectl scale deployment backend-epouvante --replicas=1
