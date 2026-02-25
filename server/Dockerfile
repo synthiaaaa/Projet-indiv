@@ -1,16 +1,20 @@
 # Image Node stable hébergée par Microsoft
 FROM mcr.microsoft.com/devcontainers/javascript-node:1-20-bullseye
+
+# Répertoire de travail
 WORKDIR /app
 
-# On copie les fichiers de dépendances (on est déjà dans le dossier server)
+# Copier package.json et package-lock.json
 COPY package*.json ./
+
+# Installer les dépendances
 RUN npm install --production
 
-# On copie tout le contenu du dossier server vers /app
+# Copier le reste du code
 COPY . .
 
-# On expose le port
+# Exposer le port
 EXPOSE 5000
 
-# On lance le serveur
-CMD ["node", "server.js"]
+# Commande de démarrage
+CMD ["node", "src/server.js"]
