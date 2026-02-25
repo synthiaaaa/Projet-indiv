@@ -5,7 +5,7 @@ metadata:
 spec:
   replicas: 1
   strategy:
-    type: Recreate  # <--- AJOUTE CECI : Coupe l'ancien pod avant de lancer le nouveau
+    type: Recreate
   selector:
     matchLabels:
       app: backend-api
@@ -19,10 +19,11 @@ spec:
         image: monregistreepouvante.azurecr.io/backend:v12
         ports:
         - containerPort: 5000
-        # Ajoute ceci pour laisser le temps au serveur de démarrer
-        startupProbe:
-          httpGet:
-            path: /
-            port: 5000
-          failureThreshold: 10
-          periodSeconds: 5
+        # On désactive temporairement les probes pour valider le déploiement
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "100m"
+            memory: "128Mi"
