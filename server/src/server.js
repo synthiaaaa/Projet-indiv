@@ -13,7 +13,7 @@ const SECRET_KEY = "cle_secrete_pour_le_jury";
 
 // --- SECTION DIAGNOSTIC SRE (MISE À JOUR) ---
 // Puisque server.js est dans /src, on remonte vers le parent pour trouver /client
-const rootPath = path.join(__dirname, '..'); // Le dossier /server
+const rootPath = path.join(__dirname, '..', 'client', 'dist'); // Le dossier /server
 const clientPath = path.join(rootPath, 'client');
 
 console.log("📂 --- INSPECTION SRE ---");
