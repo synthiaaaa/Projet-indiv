@@ -1,29 +1,30 @@
-name: CI/CD DevSecOps Final
+name: CI/CD Azure AKS
+
 on:
   push:
     branches: [ main ]
 
 jobs:
-  validate-and-deploy:
+  build-test-deploy:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
 
-      # --- TEST 1 : QUALITÉ ---
-      - name: Qualité - NPM Install & Test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # --- TESTS ---
+      - name: Install & Test
         run: |
           cd server
           npm install
-          npm test || echo "Tests terminés"
+          npm test
 
-      # --- TEST 2 : SÉCURITÉ ---
-      - name: Sécurité - Audit NPM
+      - name: Security Audit
         run: |
           cd server
-          npm audit --audit-level=high || true
+          npm audit --audit-level=critical
 
-      # --- AUTHENTIFICATION REGISTRE ---
+      # --- LOGIN ACR ---
       - name: Login to ACR
         uses: azure/docker-login@v1
         with:
@@ -31,32 +32,32 @@ jobs:
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
-      # --- BUILD & PUSH (Industrialisation) ---
-      - name: Build and Push Image
+      # --- BUILD IMAGE ---
+      - name: Build & Push Docker
         uses: docker/build-push-action@v4
         with:
           context: ./server
           file: ./server/Dockerfile
           push: true
-          tags: monregistreepouvante.azurecr.io/backend:v12
+          tags: monregistreepouvante.azurecr.io/backend:latest
 
-      # --- CONNEXION AU NOUVEAU CLUSTER (ClusterEpouvante1) ---
-      - name: Set Kubernetes Context
+      # --- CONTEXTE K8S ---
+      - name: Set Kubecontext
         uses: azure/k8s-set-context@v3
         with:
           method: kubeconfig
           kubeconfig: ${{ secrets.KUBECONFIG_DATA }}
 
-      # --- DÉPLOIEMENT RÉEL ---
+      # --- DEPLOY ---
       - name: Deploy to AKS
         uses: azure/k8s-deploy@v4
         with:
           manifests: |
             k8s/deployment.yaml
+            k8s/service.yaml
           images: |
-            monregistreepouvante.azurecr.io/backend:v12
+            monregistreepouvante.azurecr.io/backend:latest
 
-      # --- TEST 3 : SUPERVISION (Indentation corrigée ici) ---
-      - name: Supervision - Vérification Rollout
-        run: |
-          kubectl rollout status deployment/backend-epouvante --timeout=60s
+      # --- VERIF ---
+      - name: Rollout status
+        run: kubectl rollout status deployment/backend-epouvante

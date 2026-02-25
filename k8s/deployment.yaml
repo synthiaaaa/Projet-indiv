@@ -5,7 +5,7 @@ metadata:
 spec:
   replicas: 1
   strategy:
-    type: Recreate
+    type: RollingUpdate
   selector:
     matchLabels:
       app: backend-api
@@ -15,16 +15,14 @@ spec:
         app: backend-api
     spec:
       containers:
-      - name: backend-node
-        image: monregistreepouvante.azurecr.io/backend:v12
-        ports:
-        - containerPort: 5000
-        # On désactive temporairement les probes pour valider le déploiement
-        resources:
-          requests:
-            cpu: "50m"
-            memory: "64Mi"
-          limits:
-            cpu: "100m"
-            memory: "128Mi"
-
+        - name: backend-node
+          image: monregistreepouvante.azurecr.io/backend:v12
+          ports:
+            - containerPort: 5000
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
