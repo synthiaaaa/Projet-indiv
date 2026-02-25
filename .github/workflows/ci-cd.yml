@@ -1,4 +1,4 @@
-name: CI/CD DevSecOps - Evil Ed Platform
+name: CI/CD DevSecOps - Evil Ed
 
 on:
   push:
@@ -9,48 +9,64 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # --- RÉCUPÉRATION DU CODE ---
-      - name: Checkout code
+      # ──────────────────────────────
+      # 1️⃣ Checkout
+      # ──────────────────────────────
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # --- TESTS FONCTIONNELS (Tunnel de vente, Auth, Catalogue) ---
-      - name: Tests fonctionnels
+      # ──────────────────────────────
+      # 2️⃣ Install & Test
+      # ──────────────────────────────
+      - name: Install & Test
         run: |
           cd server
           npm install
-          npm test || echo "Tests exécutés mais certains ont échoué"
+          npm test
 
-      # --- AUDIT SÉCURITÉ (Protection utilisateurs) ---
-      - name: Audit dépendances
+      # ──────────────────────────────
+      # 3️⃣ Security Audit (SAST)
+      # ──────────────────────────────
+      - name: Security Audit
         run: |
           cd server
-          npm audit --audit-level=critical || echo "Audit terminé, vulnérabilités critiques possibles"
+          # Blocage si faille critique détectée
+          npm audit --audit-level=high
 
-      # --- LOGIN ACR (Industrialisation) ---
-      - name: Login ACR
+      # ──────────────────────────────
+      # 4️⃣ Login to Azure Container Registry
+      # ──────────────────────────────
+      - name: Login to ACR
         uses: azure/docker-login@v1
         with:
           login-server: monregistreepouvante.azurecr.io
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
-      # --- BUILD & PUSH IMAGE DOCKER ---
-      - name: Build & Push Docker Image
+      # ──────────────────────────────
+      # 5️⃣ Build & Push Docker Image
+      # ──────────────────────────────
+      - name: Build & Push Docker
         uses: docker/build-push-action@v4
         with:
           context: ./server
+          file: ./server/Dockerfile
           push: true
           tags: monregistreepouvante.azurecr.io/backend:latest
 
-      # --- CONTEXTE AKS (Déploiement Continu) ---
-      - name: Set Kubernetes Context
+      # ──────────────────────────────
+      # 6️⃣ Set Kubernetes context
+      # ──────────────────────────────
+      - name: Set Kubecontext
         uses: azure/k8s-set-context@v3
         with:
           method: kubeconfig
           kubeconfig: ${{ secrets.KUBECONFIG_DATA }}
 
-      # --- DÉPLOIEMENT SUR AKS ---
-      - name: Déploiement plateforme
+      # ──────────────────────────────
+      # 7️⃣ Deploy to AKS
+      # ──────────────────────────────
+      - name: Deploy to AKS
         uses: azure/k8s-deploy@v4
         with:
           manifests: |
@@ -59,6 +75,8 @@ jobs:
           images: |
             monregistreepouvante.azurecr.io/backend:latest
 
-      # --- VÉRIFICATION DISPONIBILITÉ (Supervision) ---
-      - name: Vérification Rollout
+      # ──────────────────────────────
+      # 8️⃣ Verification
+      # ──────────────────────────────
+      - name: Rollout status
         run: kubectl rollout status deployment/backend-epouvante
