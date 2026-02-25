@@ -1,11 +1,12 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: backend-service
+  name: backend-epouvante
 spec:
   type: LoadBalancer
   selector:
-    app: backend-api
+    app: backend-epouvante
   ports:
-    - port: 80
+    - protocol: TCP
+      port: 80
       targetPort: 5000

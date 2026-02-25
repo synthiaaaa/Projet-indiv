@@ -3,26 +3,25 @@ kind: Deployment
 metadata:
   name: backend-epouvante
 spec:
-  replicas: 1
-  strategy:
-    type: RollingUpdate
+  replicas: 2
   selector:
     matchLabels:
-      app: backend-api
+      app: backend-epouvante
   template:
     metadata:
       labels:
-        app: backend-api
+        app: backend-epouvante
     spec:
       containers:
-        - name: backend-node
-          image: monregistreepouvante.azurecr.io/backend:v12
+        - name: backend
+          image: monregistreepouvante.azurecr.io/backend:latest
           ports:
             - containerPort: 5000
-          resources:
-            requests:
-              cpu: "50m"
-              memory: "64Mi"
-            limits:
-              cpu: "100m"
-              memory: "128Mi"
+          env:
+            - name: APP_ENV
+              value: "production"
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secrets
+                  key: SECRET_KEY
