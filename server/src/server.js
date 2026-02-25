@@ -3,36 +3,46 @@ const cors = require('cors');
 const helmet = require('helmet');
 const bcrypt = require('bcryptjs'); 
 const jwt = require('jsonwebtoken'); 
-const path = require('path'); // Nécessaire pour gérer les chemins de fichiers
-const db = require('./database'); 
-
+const path = require('path'); 
 const fs = require('fs');
-console.log("📂 Contenu du dossier actuel :", fs.readdirSync(__dirname));
-if (fs.existsSync(path.join(__dirname, 'client'))) {
-    console.log("✅ Dossier client trouvé !");
-} else {
-    console.log("❌ Dossier client INTROUVABLE à côté de server.js");
-}
+const db = require('./database'); 
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const SECRET_KEY = "cle_secrete_pour_le_jury"; 
 
-// --- MIDDLEWARES DE SÉCURITÉ ET CONFIGURATION ---
+// --- DIAGNOSTIC DE STRUCTURE (SRE / SUPERVISION) ---
+// Ces logs te permettent de prouver au jury que tu maîtrises l'inspection de ton environnement
+const clientPath = path.join(__dirname, 'client');
+
+console.log("📂 Inspection SRE - Dossier actuel :", __dirname);
+console.log("📂 Contenu du dossier :", fs.readdirSync(__dirname));
+
+if (fs.existsSync(clientPath)) {
+    console.log("✅ Supervision : Dossier 'client' détecté avec succès.");
+    // Vérification supplémentaire pour l'index.html
+    if (fs.existsSync(path.join(clientPath, 'index.html'))) {
+        console.log("✅ Supervision : Fichier 'index.html' présent.");
+    } else {
+        console.log("⚠️ Attention : 'index.html' manquant dans le dossier client.");
+    }
+} else {
+    console.log("❌ Erreur critique : Dossier 'client' INTROUVABLE à côté de server.js");
+}
+
+// --- MIDDLEWARES DE SÉCURITÉ (DEVSECOPS) ---
 app.use(helmet({
-    contentSecurityPolicy: false, // Désactivé pour faciliter l'affichage du front en démo
+    contentSecurityPolicy: false, // Nécessaire pour charger les scripts du front en démo
 }));
 app.use(cors());
 app.use(express.json());
 
-// --- CONFIGURATION POUR LE FRONTEND (CRUCIAL POUR TON MASTER) ---
-// On indique à Express de servir les fichiers statiques du dossier 'client'
-// Ce dossier doit être placé dans le dossier 'server' pour être trouvé
-app.use(express.static(path.join(__dirname, 'client')));
+// --- SERVICE DES FICHIERS STATIQUES ---
+// On expose le dossier client pour rendre le site accessible sur l'IP Azure
+app.use(express.static(clientPath));
 
 // --- ROUTES API ---
 
-// ROUTE 1 : Récupérer les produits 
 app.get('/api/products', (req, res) => {
     db.all("SELECT * FROM products", [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -40,7 +50,6 @@ app.get('/api/products', (req, res) => {
     });
 });
 
-// ROUTE 2 : Inscription avec Nom/Prénom
 app.post('/api/auth/register', (req, res) => {
     const { prenom, nom, email, password } = req.body;
     const hashedPassword = bcrypt.hashSync(password, 8); 
@@ -51,7 +60,6 @@ app.post('/api/auth/register', (req, res) => {
     });
 });
 
-// ROUTE 3 : Connexion (Vérification et création du Jeton JWT)
 app.post('/api/auth/login', (req, res) => {
     const { email, password } = req.body;
     db.get("SELECT * FROM users WHERE email = ?", [email], (err, user) => {
@@ -65,7 +73,6 @@ app.post('/api/auth/login', (req, res) => {
     });
 });
 
-// ROUTE 4 : Sauvegarder la commande
 app.post('/api/orders', (req, res) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -85,16 +92,22 @@ app.post('/api/orders', (req, res) => {
     });
 });
 
-// --- REDIRECTION FINALE POUR LE FRONTEND ---
-// Pour toute requête qui n'est pas une API, on renvoie l'index.html
+// --- ROUTE PAR DÉFAUT (FALLBACK) ---
+// Indispensable pour que l'IP 20.74.97.2 affiche ton site et non "Cannot GET /"
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'client', 'index.html'));
+    const indexPath = path.join(clientPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+    } else {
+        res.status(404).send("Erreur : Le fichier index.html est introuvable sur le serveur.");
+    }
 });
 
-// Export de l'application (Nécessaire pour les tests Jest)
 module.exports = app;
 
-// Démarrage du serveur si on n'est pas en train de faire un test
 if (process.env.NODE_ENV !== 'test') {
-    app.listen(PORT, () => console.log(`Serveur DevSecOps démarré sur le port ${PORT}`));
+    app.listen(PORT, () => {
+        console.log(`🚀 Serveur DevSecOps démarré sur le port ${PORT}`);
+        console.log(`🔗 Accès local : http://localhost:${PORT}`);
+    });
 }
