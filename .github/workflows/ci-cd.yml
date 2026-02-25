@@ -1,31 +1,57 @@
-name: CI/CD DevSecOps - Evil Ed
+name: CI/CD DevSecOps - Evil Ed (Horizontal)
 
 on:
   push:
     branches: [ main ]
 
 jobs:
-  validate-and-deploy:
+  # ──────────────────────────────────────────────
+  # 1️⃣ INSTALL & TEST
+  # ──────────────────────────────────────────────
+  test:
+    name: 🧪 Test & Qualité
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # --- TEST 1 : QUALITÉ ---
-      - name: Qualité - NPM Install & Test
+      - name: NPM Install
         run: |
           cd server
           npm install
-          npm test || echo "Tests terminés"
 
-      # --- TEST 2 : SÉCURITÉ ---
-      - name: Sécurité - Audit NPM
+      - name: Run Tests
+        run: |
+          cd server
+          npm test --detectOpenHandles || echo "Tests terminés"
+
+  # ──────────────────────────────────────────────
+  # 2️⃣ NPM SECURITY AUDIT
+  # ──────────────────────────────────────────────
+  security:
+    name: 🔐 Audit NPM
+    runs-on: ubuntu-latest
+    needs: test   # Attend que les tests soient terminés
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Security Audit
         run: |
           cd server
           npm audit --audit-level=high || true
 
-      # --- AUTHENTIFICATION REGISTRE ---
+  # ──────────────────────────────────────────────
+  # 3️⃣ BUILD & PUSH DOCKER IMAGE
+  # ──────────────────────────────────────────────
+  build:
+    name: 🐳 Build & Push Docker
+    runs-on: ubuntu-latest
+    needs: security   # Après audit
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
       - name: Login to ACR
         uses: azure/docker-login@v1
         with:
@@ -33,8 +59,7 @@ jobs:
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
-      # --- BUILD & PUSH (Industrialisation) ---
-      - name: Build and Push Image
+      - name: Build & Push Image
         uses: docker/build-push-action@v4
         with:
           context: ./server
@@ -42,15 +67,24 @@ jobs:
           push: true
           tags: monregistreepouvante.azurecr.io/backend:latest
 
-      # --- CONNEXION AU NOUVEAU CLUSTER ---
+  # ──────────────────────────────────────────────
+  # 4️⃣ DEPLOY TO AKS
+  # ──────────────────────────────────────────────
+  deploy:
+    name: 🚀 Deploy to AKS
+    runs-on: ubuntu-latest
+    needs: build   # Après build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
       - name: Set Kubernetes Context
         uses: azure/k8s-set-context@v3
         with:
           method: kubeconfig
           kubeconfig: ${{ secrets.KUBECONFIG_DATA }}
 
-      # --- DÉPLOIEMENT RÉEL ---
-      - name: Deploy to AKS
+      - name: Deploy Manifests
         uses: azure/k8s-deploy@v4
         with:
           manifests: |
@@ -59,7 +93,6 @@ jobs:
           images: |
             monregistreepouvante.azurecr.io/backend:latest
 
-      # --- TEST 3 : SUPERVISION ---
-      - name: Supervision - Vérification Rollout
+      - name: Rollout Status
         run: |
           kubectl rollout status deployment/backend-epouvante --timeout=60s
