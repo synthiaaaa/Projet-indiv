@@ -6,6 +6,14 @@ const jwt = require('jsonwebtoken');
 const path = require('path'); // Nécessaire pour gérer les chemins de fichiers
 const db = require('./database'); 
 
+const fs = require('fs');
+console.log("📂 Contenu du dossier actuel :", fs.readdirSync(__dirname));
+if (fs.existsSync(path.join(__dirname, 'client'))) {
+    console.log("✅ Dossier client trouvé !");
+} else {
+    console.log("❌ Dossier client INTROUVABLE à côté de server.js");
+}
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 const SECRET_KEY = "cle_secrete_pour_le_jury"; 
