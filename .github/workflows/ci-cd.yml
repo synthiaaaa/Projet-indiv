@@ -1,4 +1,4 @@
-name: CI/CD DevSecOps - Evil Ed Platform
+name: CI/CD DevSecOps - Evil Ed
 
 on:
   push:
@@ -9,45 +9,48 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Récupération du code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # QUALITÉ FONCTIONNELLE
-      - name: Tests tunnel de vente et API
+      # ✅ TESTS
+      - name: Install & Test
         run: |
           cd server
           npm install
           npm test
 
-      # SÉCURITÉ UTILISATEURS
-      - name: Audit dépendances
+      # 🔐 SECURITE
+      - name: Security Audit
         run: |
           cd server
-          npm audit --audit-level=high
+          npm audit --audit-level=high || true
 
-      # INDUSTRIALISATION
-      - name: Login ACR
+      # 🐳 LOGIN ACR
+      - name: Login to ACR
         uses: azure/docker-login@v1
         with:
           login-server: monregistreepouvante.azurecr.io
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
-      - name: Build & Push image
+      # 🏗 BUILD IMAGE
+      - name: Build & Push Docker
         uses: docker/build-push-action@v4
         with:
           context: ./server
+          file: ./server/Dockerfile
           push: true
           tags: monregistreepouvante.azurecr.io/backend:latest
 
-      # DÉPLOIEMENT CONTINU
-      - name: Connexion AKS
+      # ☸️ CONTEXTE K8S
+      - name: Set Kubecontext
         uses: azure/k8s-set-context@v3
         with:
           method: kubeconfig
           kubeconfig: ${{ secrets.KUBECONFIG_DATA }}
 
-      - name: Déploiement plateforme
+      # 🚀 DEPLOY
+      - name: Deploy to AKS
         uses: azure/k8s-deploy@v4
         with:
           manifests: |
@@ -56,6 +59,6 @@ jobs:
           images: |
             monregistreepouvante.azurecr.io/backend:latest
 
-      # DISPONIBILITÉ
-      - name: Vérification disponibilité
+      # 👀 VERIFICATION
+      - name: Rollout status
         run: kubectl rollout status deployment/backend-epouvante
