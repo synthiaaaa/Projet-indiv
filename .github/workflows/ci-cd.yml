@@ -1,55 +1,53 @@
-name: CI/CD Azure AKS
+name: CI/CD DevSecOps - Evil Ed Platform
 
 on:
   push:
     branches: [ main ]
 
 jobs:
-  build-test-deploy:
+  pipeline:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Récupération du code
         uses: actions/checkout@v4
 
-      # --- TESTS ---
-      - name: Install & Test
+      # QUALITÉ FONCTIONNELLE
+      - name: Tests tunnel de vente et API
         run: |
           cd server
           npm install
           npm test
 
-      - name: Security Audit
+      # SÉCURITÉ UTILISATEURS
+      - name: Audit dépendances
         run: |
           cd server
-          npm audit --audit-level=critical
+          npm audit --audit-level=high
 
-      # --- LOGIN ACR ---
-      - name: Login to ACR
+      # INDUSTRIALISATION
+      - name: Login ACR
         uses: azure/docker-login@v1
         with:
           login-server: monregistreepouvante.azurecr.io
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
-      # --- BUILD IMAGE ---
-      - name: Build & Push Docker
+      - name: Build & Push image
         uses: docker/build-push-action@v4
         with:
           context: ./server
-          file: ./server/Dockerfile
           push: true
           tags: monregistreepouvante.azurecr.io/backend:latest
 
-      # --- CONTEXTE K8S ---
-      - name: Set Kubecontext
+      # DÉPLOIEMENT CONTINU
+      - name: Connexion AKS
         uses: azure/k8s-set-context@v3
         with:
           method: kubeconfig
           kubeconfig: ${{ secrets.KUBECONFIG_DATA }}
 
-      # --- DEPLOY ---
-      - name: Deploy to AKS
+      - name: Déploiement plateforme
         uses: azure/k8s-deploy@v4
         with:
           manifests: |
@@ -58,6 +56,6 @@ jobs:
           images: |
             monregistreepouvante.azurecr.io/backend:latest
 
-      # --- VERIF ---
-      - name: Rollout status
+      # DISPONIBILITÉ
+      - name: Vérification disponibilité
         run: kubectl rollout status deployment/backend-epouvante
