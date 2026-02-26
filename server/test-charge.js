@@ -13,11 +13,11 @@ export const options = {
 };
 
 export default function () {
-  // Remplacez l'URL par votre IP Ingress Azure ou localhost pour un test local
-  const res = http.get('http://localhost:5000/api/catalogue');
+  const res = http.get('http://localhost:5000/api/products');
   
   check(res, {
     'statut est 200': (r) => r.status === 200,
+    'temps de réponse < 500ms': (r) => r.timings.duration < 500,
   });
   
   sleep(1);

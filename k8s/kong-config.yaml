@@ -1,0 +1,61 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: bazar-rate-limit
+config:
+  minute: 120
+  policy: local
+  limit_by: ip
+plugin: rate-limiting
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: bazar-cors
+config:
+  origins:
+    - "*"
+  methods:
+    - GET
+    - POST
+    - OPTIONS
+  headers:
+    - Authorization
+    - Content-Type
+  credentials: false
+  max_age: 3600
+plugin: cors
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bazar-api-ingress
+  annotations:
+    konghq.com/strip-path: "true"
+    konghq.com/plugins: bazar-rate-limit,bazar-cors
+spec:
+  ingressClassName: kong
+  rules:
+    - http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: bazar-api
+                port:
+                  number: 80
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: bazar-api
+                port:
+                  number: 80
+          - path: /metrics
+            pathType: Prefix
+            backend:
+              service:
+                name: bazar-api
+                port:
+                  number: 80

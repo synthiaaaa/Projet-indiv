@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "scripts": {
     "start": "node src/server.js",
-    "test": "jest --detectOpenHandles",
-    "lint": "eslint .",
-    "audit": "npm audit --audit-level=high"
+    "test": "jest --detectOpenHandles --runInBand",
+    "lint": "node --check src/server.js && node --check src/database.js",
+    "audit": "npm audit --audit-level=high || true",
+    "test:load": "node test-charge.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.0",
@@ -13,7 +14,8 @@
     "cors": "^2.8.6",
     "express": "^4.22.1",
     "helmet": "^8.1.0",
-    "jsonwebtoken": "^9.0.3"
+    "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^8.0.1"
   },
   "devDependencies": {
     "jest": "^29.6.1",

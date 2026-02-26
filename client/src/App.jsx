@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import ProductList from './components/ProductList';
 import './App.css'; 
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 function App() {
   const [cart, setCart] = useState([]);
   const [currentView, setCurrentView] = useState('catalogue'); 
@@ -53,7 +55,7 @@ function App() {
     }
     
     try {
-      const res = await fetch(`http://localhost:5000${endpoint}`, {
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -83,7 +85,7 @@ function App() {
   const processPayment = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:5000/api/orders', {
+      const res = await fetch(`${API_BASE_URL}/api/orders`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

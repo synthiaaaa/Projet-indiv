@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 function ProductList({ onAddToCart }) {
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/products')
+    fetch(`${API_BASE_URL}/api/products`)
       .then(res => res.json())
       .then(data => {
         // SÉCURITÉ : On vérifie que le serveur a bien renvoyé un tableau

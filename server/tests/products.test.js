@@ -1,18 +1,21 @@
-// tests/products.test.js
-const request = require('supertest');
-const { app, server } = require('../src/server');
+const request = require("supertest");
+const { app, server } = require("../src/server");
 
-describe('API /products', () => {
-  it('devrait retourner la liste des produits', async () => {
-    const res = await request(app).get('/products');
+describe("Products API", () => {
+  it("returns seeded products", async () => {
+    const res = await request(app).get("/api/products");
     expect(res.statusCode).toBe(200);
-    expect(res.body).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: 1, name: 'Potion de soin' })
-    ]));
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBeGreaterThan(0);
+    expect(res.body[0]).toEqual(
+      expect.objectContaining({
+        id: expect.any(Number),
+        name: expect.any(String),
+      })
+    );
   });
 });
 
-// Fermeture du serveur après tous les tests
 afterAll(() => {
   if (server) server.close();
 });

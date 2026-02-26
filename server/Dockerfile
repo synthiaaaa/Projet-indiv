@@ -1,23 +1,15 @@
-# Image officielle légère
 FROM node:20-alpine
 
-# Répertoire de travail
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 WORKDIR /app
 
-# Copier dépendances
 COPY package*.json ./
+RUN npm ci --omit=dev
 
-# Installation propre et déterministe
-RUN npm ci --only=production
-
-# Copier le code
 COPY . .
+RUN chown -R appuser:appgroup /app
 
-# Exposer le bon port
 EXPOSE 5000
+USER appuser
 
-# Sécurité : utilisateur non-root
-USER node
-
-# Lancer l'application
 CMD ["node", "src/server.js"]

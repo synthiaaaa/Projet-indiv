@@ -1,135 +1,238 @@
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const bcrypt = require('bcryptjs'); 
-const jwt = require('jsonwebtoken'); 
-const path = require('path');
-const fs = require('fs');
-const db = require('./database'); 
+const express = require("express");
+const cors = require("cors");
+const helmet = require("helmet");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
+const db = require("./database");
 
 const app = express();
-const PORT = process.env.PORT || 5000;
-const SECRET_KEY = "cle_secrete_pour_le_jury"; 
+const PORT = Number(process.env.PORT || 5000);
+const JWT_SECRET = process.env.JWT_SECRET || "change-me-in-production";
+const EMAIL_USER = process.env.EMAIL_USER;
+const EMAIL_PASS = process.env.EMAIL_PASS;
+const EMAIL_ENABLED = Boolean(EMAIL_USER && EMAIL_PASS);
 
-// --- SÉCURITÉ ---
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(express.json());
 
-// --- SUPERVISION SRE : SERVIR LE FRONTEND ---
-const clientPath = path.join(__dirname, '..', '..', 'client'); 
-console.log("📂 [SRE] Recherche du Frontend à :", clientPath);
-
-if (fs.existsSync(clientPath)) {
-    console.log("✅ [SRE] Frontend détecté avec succès.");
-    app.use(express.static(clientPath));
-} else {
-    console.log("❌ [SRE] Frontend introuvable en mode statique.");
+function run(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function onRun(err) {
+      if (err) return reject(err);
+      resolve(this);
+    });
+  });
 }
 
-// --- ROUTES API ---
-
-app.get('/api/products', (req, res) => {
-    db.all("SELECT * FROM products", [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
+function get(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      resolve(row);
     });
-});
-
-// ROUTE : Inscription avec Validation de Mot de Passe
-app.post('/api/auth/register', (req, res) => {
-    console.log("📥 [SRE] Tentative d'inscription reçue :", req.body);
-    const { prenom, nom, email, password } = req.body;
-    
-    if (!email || !password) return res.status(400).json({ error: "Email et mot de passe requis." });
-
-    // SÉCURITÉ : Validation de la complexité du mot de passe
-    const passwordRegex = /^(?=.*[A-Z])(?=.*[\W_]).{8,}$/;
-    if (!passwordRegex.test(password)) {
-        return res.status(400).json({ 
-            error: "Le mot de passe doit contenir au moins 8 caractères, une majuscule et un caractère spécial." 
-        });
-    }
-
-    const hashedPassword = bcrypt.hashSync(password, 8); 
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    
-    db.run("INSERT INTO users (prenom, nom, email, password, verification_code, is_verified) VALUES (?, ?, ?, ?, ?, 0)", 
-    [prenom, nom, email, hashedPassword, verificationCode], function(err) {
-        if (err) {
-            console.error("❌ [ERREUR SQL INSCRIPTION] :", err.message); 
-            return res.status(400).json({ error: "Cet email est déjà utilisé." });
-        }
-        
-        console.log(`\n🦇 [EMAIL ENVOYÉ] À: ${email}`);
-        console.log(`Code secret : ${verificationCode}\n`);
-
-        res.status(201).json({ message: "Veuillez vérifier votre email pour le code secret !" });
-    });
-});
-
-// ROUTE : Vérification du code OTP
-app.post('/api/auth/verify', (req, res) => {
-    const { email, code } = req.body;
-    db.get("SELECT * FROM users WHERE email = ?", [email], (err, user) => {
-        if (err || !user) return res.status(400).json({ error: "Utilisateur introuvable." });
-        if (user.verification_code !== code) return res.status(400).json({ error: "Code d'invocation incorrect 🧙‍♂️." });
-
-        db.run("UPDATE users SET is_verified = 1, verification_code = NULL WHERE email = ?", [email], (err) => {
-            if (err) return res.status(500).json({ error: "Erreur lors de la validation." });
-            console.log(`✅ [SRE] Compte vérifié et activé pour : ${email}`);
-            res.json({ message: "Pacte scellé ! Vous pouvez vous connecter." });
-        });
-    });
-});
-
-// ROUTE : Connexion
-app.post('/api/auth/login', (req, res) => {
-    const { email, password } = req.body;
-    db.get("SELECT * FROM users WHERE email = ?", [email], (err, user) => {
-        if (err || !user) return res.status(401).json({ error: "Utilisateur introuvable." });
-        if (user.is_verified === 0) return res.status(403).json({ error: "Veuillez d'abord vérifier votre compte avec le code reçu par email." });
-
-        const isValid = bcrypt.compareSync(password, user.password); 
-        if (!isValid) return res.status(401).json({ error: "Mot de passe incorrect." });
-
-        const token = jwt.sign({ id: user.id, email: user.email, prenom: user.prenom }, SECRET_KEY, { expiresIn: '2h' });
-        res.json({ token, prenom: user.prenom, message: "Connexion réussie !" });
-    });
-});
-
-// ROUTE : Commandes
-app.post('/api/orders', (req, res) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    if (!token) return res.status(403).json({ error: "Accès refusé. Veuillez vous connecter." });
-
-    jwt.verify(token, SECRET_KEY, (err, user) => {
-        if (err) return res.status(403).json({ error: "Session expirée ou invalide." });
-
-        const { total } = req.body;
-        db.run("INSERT INTO orders (user_id, total_price, status) VALUES (?, ?, ?)", [user.id, total, 'Validée'], function(err) {
-            if (err) return res.status(500).json({ error: "Erreur serveur." });
-            
-            console.log(`\n📧 [EMAIL ENVOYÉ] À: ${user.email}`);
-            console.log(`Sujet: Confirmation de votre commande n°EPOUVANTE-000${this.lastID}`);
-            console.log(`Corps: Merci pour votre achat de ${total}€ !\n`);
-
-            res.status(201).json({ orderId: this.lastID, message: "Achat ajouté à l'historique en base de données !" });
-        });
-    });
-});
-
-app.get('*', (req, res) => {
-    if (fs.existsSync(path.join(clientPath, 'index.html'))) {
-        res.sendFile(path.join(clientPath, 'index.html'));
-    } else {
-        res.status(404).send("Erreur 404 : Frontend non trouvé.");
-    }
-});
-
-module.exports = app;
-
-if (process.env.NODE_ENV !== 'test') {
-    app.listen(PORT, () => console.log(`🚀 Serveur DevSecOps démarré sur le port ${PORT}`));
+  });
 }
+
+function all(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows);
+    });
+  });
+}
+
+function createVerificationCode() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+async function sendVerificationEmail(to, code, prenom) {
+  if (!EMAIL_ENABLED) return;
+
+  const transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: { user: EMAIL_USER, pass: EMAIL_PASS },
+  });
+
+  await transporter.sendMail({
+    from: `"Le Bazar de l'Etrange" <${EMAIL_USER}>`,
+    to,
+    subject: "Validation de votre compte",
+    text: `Bonjour ${prenom}, votre code de verification est: ${code}`,
+  });
+}
+
+function authRequired(req, res, next) {
+  const header = req.headers.authorization || "";
+  if (!header.startsWith("Bearer ")) {
+    return res.status(403).json({ error: "Jeton JWT manquant." });
+  }
+
+  const token = header.slice("Bearer ".length);
+  try {
+    req.user = jwt.verify(token, JWT_SECRET);
+    return next();
+  } catch (err) {
+    return res.status(401).json({ error: "Jeton JWT invalide." });
+  }
+}
+
+app.get("/api/health", (_req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
+app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "UP", uptimeSec: process.uptime() });
+});
+
+app.get("/ready", async (_req, res) => {
+  try {
+    await get("SELECT 1 AS ok");
+    res.status(200).json({ ready: true });
+  } catch (_err) {
+    res.status(503).json({ ready: false });
+  }
+});
+
+app.get("/metrics", async (_req, res) => {
+  try {
+    const users = await get("SELECT COUNT(*) AS count FROM users");
+    const products = await get("SELECT COUNT(*) AS count FROM products");
+    const orders = await get("SELECT COUNT(*) AS count FROM orders");
+    const revenue = await get("SELECT COALESCE(SUM(total_price), 0) AS total FROM orders");
+
+    res.status(200).json({
+      indicators: {
+        users: users?.count || 0,
+        products: products?.count || 0,
+        orders: orders?.count || 0,
+        revenue: Number(revenue?.total || 0),
+      },
+    });
+  } catch (_err) {
+    res.status(500).json({ error: "Impossible de calculer les indicateurs." });
+  }
+});
+
+app.post("/api/auth/register", async (req, res) => {
+  const { prenom, nom, email, password } = req.body || {};
+  const passwordRegex = /^(?=.*[A-Z])(?=.*[\W_]).{8,}$/;
+
+  if (!prenom || !nom || !email || !password) {
+    return res.status(400).json({ error: "Champs obligatoires manquants." });
+  }
+  if (!passwordRegex.test(password)) {
+    return res.status(400).json({ error: "Mot de passe trop faible." });
+  }
+
+  const verificationCode = createVerificationCode();
+  const hashedPassword = bcrypt.hashSync(password, 10);
+
+  try {
+    await run(
+      "INSERT INTO users (prenom, nom, email, password, verification_code, is_verified) VALUES (?, ?, ?, ?, ?, ?)",
+      [prenom, nom, email.toLowerCase(), hashedPassword, verificationCode, EMAIL_ENABLED ? 0 : 1]
+    );
+
+    await sendVerificationEmail(email, verificationCode, prenom);
+    return res.status(201).json({
+      message: EMAIL_ENABLED ? "Compte cree. Verifiez votre email." : "Compte cree.",
+      verificationCode: process.env.NODE_ENV === "test" || !EMAIL_ENABLED ? verificationCode : undefined,
+    });
+  } catch (err) {
+    if (String(err.message || "").includes("UNIQUE")) {
+      return res.status(409).json({ error: "Email deja utilise." });
+    }
+    return res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+
+app.post("/api/auth/verify", async (req, res) => {
+  const { email, code } = req.body || {};
+  if (!email || !code) {
+    return res.status(400).json({ error: "Email et code requis." });
+  }
+
+  try {
+    const user = await get("SELECT id, verification_code FROM users WHERE email = ?", [email.toLowerCase()]);
+    if (!user) return res.status(404).json({ error: "Utilisateur introuvable." });
+    if (String(user.verification_code) !== String(code)) {
+      return res.status(400).json({ error: "Code invalide." });
+    }
+
+    await run("UPDATE users SET is_verified = 1, verification_code = NULL WHERE id = ?", [user.id]);
+    return res.status(200).json({ message: "Compte verifie." });
+  } catch (_err) {
+    return res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+
+app.post("/api/auth/login", async (req, res) => {
+  const { email, password } = req.body || {};
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email et mot de passe requis." });
+  }
+
+  try {
+    const user = await get("SELECT * FROM users WHERE email = ?", [email.toLowerCase()]);
+    if (!user) return res.status(401).json({ error: "Identifiants invalides." });
+    if (!user.is_verified) return res.status(403).json({ error: "Compte non verifie." });
+
+    const ok = bcrypt.compareSync(password, user.password);
+    if (!ok) return res.status(401).json({ error: "Identifiants invalides." });
+
+    const token = jwt.sign({ id: user.id, email: user.email, prenom: user.prenom }, JWT_SECRET, { expiresIn: "2h" });
+    return res.status(200).json({ token, prenom: user.prenom });
+  } catch (_err) {
+    return res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+
+app.get("/api/products", async (_req, res) => {
+  try {
+    const products = await all("SELECT id, name, type, price, description, image_url FROM products");
+    return res.status(200).json(
+      products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        type: p.type,
+        price: p.price,
+        description: p.description,
+        imageUrl: p.image_url,
+      }))
+    );
+  } catch (_err) {
+    return res.status(500).json({ error: "Erreur base de donnees." });
+  }
+});
+
+app.post("/api/orders", authRequired, async (req, res) => {
+  const total = Number(req.body?.total);
+  if (!Number.isFinite(total) || total <= 0) {
+    return res.status(400).json({ error: "Montant invalide." });
+  }
+
+  try {
+    const result = await run("INSERT INTO orders (user_id, total_price, status) VALUES (?, ?, ?)", [
+      req.user.id,
+      total,
+      "created",
+    ]);
+    return res.status(201).json({ message: "Commande enregistree.", orderId: result.lastID });
+  } catch (_err) {
+    return res.status(500).json({ error: "Erreur lors de la commande." });
+  }
+});
+
+let server;
+if (require.main === module) {
+  server = app.listen(PORT, () => {
+    console.log(`API started on port ${PORT}`);
+  });
+}
+
+module.exports = { app, server };

@@ -1,75 +1,92 @@
-name: CI/CD SRE - La Petite Maison de l'Épouvante
+name: CI-CD DevSecOps GCP Kong
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: ["main", "master"]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: ["main", "master"]
+
+env:
+  PROJECT_ID: project-6ead5f33-15fd-443c-817
+  IMAGE_NAME: bazar-api
+  REGISTRY: gcr.io
 
 jobs:
-  # --- JOB 1 : TESTS UNITAIRES (Le Gardien du Temple) ---
-  unit-tests:
+  quality-and-security:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
     steps:
-      - name: 📥 Récupération du code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 🟢 Installation de Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: 'server/package-lock.json'
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
 
-      - name: 📦 Installation des dépendances
-        working-directory: ./server
+      - name: Install root dependencies
+        run: npm ci
+        working-directory: .
+
+      - name: Install server dependencies
         run: npm ci
 
-      - name: 🦇 Initialisation Base de Données (Fix SRE)
-        working-directory: ./server
-        run: node src/init-db.js
+      - name: Lint
+        run: npm run lint
 
-      - name: 🧪 Exécution des Tests Jest
-        working-directory: ./server
+      - name: Unit and integration tests
         run: npm test
 
-  # --- JOB 2 : SCAN SÉCURITÉ (En parallèle) ---
-  security-scan:
-    needs: unit-tests # Attend que les tests unitaires soient OK
+      - name: Dependency audit (high+)
+        run: npm run audit
+
+  build-and-deploy:
+    if: github.event_name == 'push'
+    needs: quality-and-security
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      IMAGE_TAG: ${{ github.sha }}
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: 🛡️ Audit de vulnérabilités (NPM Audit)
-        working-directory: ./server
-        run: npm audit --audit-level=high
-        continue-on-error: true # On affiche les failles sans bloquer le pipeline pour le POC
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  # --- JOB 3 : TEST DE CHARGE (En parallèle) ---
-  load-test:
-    needs: unit-tests # Attend que les tests unitaires soient OK
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: 🟢 Installation Node.js
-        uses: actions/setup-node@v4
+      - name: Auth Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          node-version: '20'
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: 📦 Setup Environnement
-        working-directory: ./server
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker auth for GCR
+        run: gcloud auth configure-docker --quiet
+
+      - name: Build and push image
         run: |
-          npm ci
-          node src/init-db.js
+          docker build -t ${REGISTRY}/${PROJECT_ID}/${IMAGE_NAME}:${IMAGE_TAG} ./server
+          docker push ${REGISTRY}/${PROJECT_ID}/${IMAGE_NAME}:${IMAGE_TAG}
 
-      - name: 🚀 Démarrage Serveur (Background)
-        working-directory: ./server
-        run: |
-          npm start & 
-          sleep 5
-
-      - name: 🔥 Tir de charge (K6)
-        uses: grafana/k6-action@v0.3.0
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
         with:
-          filename: load-test.js # K6 va chercher ce fichier à la racine
+          cluster_name: ${{ secrets.GKE_CLUSTER }}
+          location: ${{ secrets.GKE_LOCATION }}
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Deploy Kubernetes resources
+        run: |
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+          kubectl apply -f k8s/hpa.yaml
+          kubectl apply -f k8s/kong-config.yaml
+          kubectl set image deployment/bazar-api bazar-api=${REGISTRY}/${PROJECT_ID}/${IMAGE_NAME}:${IMAGE_TAG}
+          kubectl rollout status deployment/bazar-api

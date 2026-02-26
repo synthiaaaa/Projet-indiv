@@ -1,32 +1,42 @@
-const request = require('supertest');
-const app = require('../src/server'); // Import de ton application express
-const jwt = require('jsonwebtoken');
+const request = require("supertest");
+const { app } = require("../src/server");
 
-describe('🛡️ Tests de Sécurité - Authentification JWT', () => {
-    
-    const SECRET_KEY = "cle_secrete_devsecops_master"; // Doit correspondre à celle du serveur
+describe("Authentication and JWT security", () => {
+  it("rejects protected endpoint when token is missing", async () => {
+    const res = await request(app).post("/api/orders").send({ total: 45 });
+    expect(res.statusCode).toBe(403);
+  });
 
-    it('❌ Devrait refuser l’accès à une route protégée sans jeton (403)', async () => {
-        const res = await request(app)
-            .post('/api/orders') // Exemple d'une route sensible
-            .send({ total: 45.00 });
-        
-        expect(res.statusCode).toEqual(403);
-        expect(res.body.error).toBeDefined();
-        console.log("✅ Test réussi : Accès anonyme bloqué.");
+  it("accepts protected endpoint with valid token", async () => {
+    const email = `test-${Date.now()}@epouvante.fr`;
+    const password = "Secret!Pass1";
+
+    const registerRes = await request(app).post("/api/auth/register").send({
+      prenom: "Test",
+      nom: "User",
+      email,
+      password,
     });
+    expect([201, 409]).toContain(registerRes.statusCode);
 
-    it('✅ Devrait autoriser l’accès avec un jeton JWT valide (201)', async () => {
-        // Simulation d'un jeton valide pour un utilisateur test
-        const token = jwt.sign({ id: 1, email: 'test@epouvante.fr' }, SECRET_KEY);
+    if (registerRes.statusCode === 201 && registerRes.body.verificationCode) {
+      await request(app).post("/api/auth/verify").send({
+        email,
+        code: registerRes.body.verificationCode,
+      });
+    }
 
-        const res = await request(app)
-            .post('/api/orders')
-            .set('Authorization', `Bearer ${token}`)
-            .send({ total: 45.00 });
+    const loginRes = await request(app).post("/api/auth/login").send({ email, password });
+    expect(loginRes.statusCode).toBe(200);
+    const token = loginRes.body.token;
+    expect(token).toBeDefined();
 
-        expect(res.statusCode).toEqual(201);
-        expect(res.body.message).toContain("Commande enregistrée");
-        console.log("✅ Test réussi : Authentification JWT validée.");
-    });
+    const res = await request(app)
+      .post("/api/orders")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ total: 45 });
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.orderId).toBeDefined();
+  });
 });
