@@ -108,6 +108,9 @@ jobs:
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
           kubectl apply -f k8s/hpa.yaml
+          kubectl apply -f k8s/gke-managed-certificate.yaml
+          kubectl apply -f k8s/gke-frontendconfig.yaml
+          kubectl apply -f k8s/gke-ingress-https.yaml
           if kubectl api-resources --api-group=configuration.konghq.com | grep -q "KongPlugin"; then
             kubectl apply -f k8s/kong-config.yaml
           else
@@ -129,4 +132,12 @@ jobs:
             kubectl describe pods -l app=bazar-api || true
             kubectl logs -l app=bazar-api --tail=200 || true
             exit 1
+          fi
+
+          INGRESS_HOST=$(kubectl get ingress bazar-api-gke-ingress -o jsonpath='{.spec.rules[0].host}' 2>/dev/null || true)
+          INGRESS_IP=$(kubectl get ingress bazar-api-gke-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)
+          echo "Public host: ${INGRESS_HOST:-not-set}"
+          echo "Ingress IP: ${INGRESS_IP:-pending}"
+          if [ -n "${INGRESS_HOST:-}" ]; then
+            echo "App link (HTTPS once DNS/certificate are ready): https://${INGRESS_HOST}/api/products"
           fi
