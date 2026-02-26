@@ -230,8 +230,8 @@ app.post("/api/orders", authRequired, async (req, res) => {
 
 let server;
 if (require.main === module) {
-  server = app.listen(PORT, () => {
-    console.log(`API started on port ${PORT}`);
+  server = app.listen(PORT, "0.0.0.0", () => {
+    console.log(`API started on 0.0.0.0:${PORT}`);
   });
 }
 
