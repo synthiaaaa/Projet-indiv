@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import ProductList from './components/ProductList';
 import './App.css'; 
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 function App() {
   const [cart, setCart] = useState([]);

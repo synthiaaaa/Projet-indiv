@@ -8,7 +8,8 @@ on:
 
 env:
   PROJECT_ID: project-6ead5f33-15fd-443c-817
-  IMAGE_NAME: bazar-api
+  API_IMAGE_NAME: bazar-api
+  WEB_IMAGE_NAME: bazar-web
   REGISTRY: europe-west9-docker.pkg.dev
   AR_REPO: bazar-api-repo
 
@@ -91,8 +92,10 @@ jobs:
 
       - name: Build and push image
         run: |
-          docker build -t ${REGISTRY}/${PROJECT_ID}/${AR_REPO}/${IMAGE_NAME}:${IMAGE_TAG} ./server
-          docker push ${REGISTRY}/${PROJECT_ID}/${AR_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
+          docker build -t ${REGISTRY}/${PROJECT_ID}/${AR_REPO}/${API_IMAGE_NAME}:${IMAGE_TAG} ./server
+          docker push ${REGISTRY}/${PROJECT_ID}/${AR_REPO}/${API_IMAGE_NAME}:${IMAGE_TAG}
+          docker build -t ${REGISTRY}/${PROJECT_ID}/${AR_REPO}/${WEB_IMAGE_NAME}:${IMAGE_TAG} ./client
+          docker push ${REGISTRY}/${PROJECT_ID}/${AR_REPO}/${WEB_IMAGE_NAME}:${IMAGE_TAG}
 
       - name: Get GKE credentials
         uses: google-github-actions/get-gke-credentials@v2
@@ -108,6 +111,7 @@ jobs:
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
           kubectl apply -f k8s/hpa.yaml
+          [ -f k8s/frontend.yaml ] && kubectl apply -f k8s/frontend.yaml || echo "Skipping missing k8s/frontend.yaml"
           [ -f k8s/reverse-proxy.yaml ] && kubectl apply -f k8s/reverse-proxy.yaml || echo "Skipping missing k8s/reverse-proxy.yaml"
           [ -f k8s/gke-managed-certificate.yaml ] && kubectl apply -f k8s/gke-managed-certificate.yaml || echo "Skipping missing k8s/gke-managed-certificate.yaml"
           [ -f k8s/gke-frontendconfig.yaml ] && kubectl apply -f k8s/gke-frontendconfig.yaml || echo "Skipping missing k8s/gke-frontendconfig.yaml"
@@ -124,7 +128,8 @@ jobs:
             exit 1
           fi
 
-          kubectl set image deployment/bazar-api bazar-api=${REGISTRY}/${PROJECT_ID}/${AR_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
+          kubectl set image deployment/bazar-api bazar-api=${REGISTRY}/${PROJECT_ID}/${AR_REPO}/${API_IMAGE_NAME}:${IMAGE_TAG}
+          kubectl set image deployment/bazar-web bazar-web=${REGISTRY}/${PROJECT_ID}/${AR_REPO}/${WEB_IMAGE_NAME}:${IMAGE_TAG} || true
           if ! kubectl rollout status deployment/bazar-api --timeout=300s; then
             echo "Rollout failed. Collecting diagnostics..."
             kubectl get deploy,rs,pods,svc,ingress,hpa -o wide || true
@@ -134,6 +139,7 @@ jobs:
             kubectl logs -l app=bazar-api --tail=200 || true
             exit 1
           fi
+          kubectl rollout status deployment/bazar-web --timeout=300s || true
 
           INGRESS_HOST=$(kubectl get ingress bazar-api-gke-ingress -o jsonpath='{.spec.rules[0].host}' 2>/dev/null || true)
           INGRESS_IP=$(kubectl get ingress bazar-api-gke-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)
@@ -142,7 +148,8 @@ jobs:
           echo "Ingress IP: ${INGRESS_IP:-pending}"
           echo "Reverse proxy IP: ${REVERSE_PROXY_IP:-pending}"
           if [ -n "${REVERSE_PROXY_IP:-}" ]; then
-            echo "App link (HTTP via reverse proxy): http://${REVERSE_PROXY_IP}/api/products"
+            echo "App frontend link (HTTP): http://${REVERSE_PROXY_IP}/"
+            echo "App API link (HTTP): http://${REVERSE_PROXY_IP}/api/products"
           fi
           if [ -n "${INGRESS_HOST:-}" ]; then
             echo "App link (HTTPS once DNS/certificate are ready): https://${INGRESS_HOST}/api/products"

@@ -8,8 +8,29 @@ data:
       listen 8080;
       server_name _;
 
-      location / {
+      location /api/ {
         proxy_pass http://bazar-api.default.svc.cluster.local;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+      }
+
+      location = /health {
+        proxy_pass http://bazar-api.default.svc.cluster.local/health;
+      }
+
+      location = /metrics {
+        proxy_pass http://bazar-api.default.svc.cluster.local/metrics;
+      }
+
+      location = /proxy-health {
+        return 200 "ok";
+      }
+
+      location / {
+        proxy_pass http://bazar-web.default.svc.cluster.local;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -45,13 +66,13 @@ spec:
               subPath: default.conf
           readinessProbe:
             httpGet:
-              path: /health
+              path: /proxy-health
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
             httpGet:
-              path: /health
+              path: /proxy-health
               port: 8080
             initialDelaySeconds: 10
             periodSeconds: 10
