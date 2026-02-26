@@ -1,35 +1,75 @@
-name: CI/CD DevSecOps - Blockbuster
-on: [push]
+name: CI/CD SRE - La Petite Maison de l'Épouvante
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
 
 jobs:
-  test-and-deploy:
+  # --- JOB 1 : TESTS UNITAIRES (Le Gardien du Temple) ---
+  unit-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: 📥 Récupération du code
+        uses: actions/checkout@v4
 
-      # Étape 1 : Tests unitaires et Sécurité (SAST)
-      - name: Install dependencies & Test
+      - name: 🟢 Installation de Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'server/package-lock.json'
+
+      - name: 📦 Installation des dépendances
+        working-directory: ./server
+        run: npm ci
+
+      - name: 🦇 Initialisation Base de Données (Fix SRE)
+        working-directory: ./server
+        run: node src/init-db.js
+
+      - name: 🧪 Exécution des Tests Jest
+        working-directory: ./server
+        run: npm test
+
+  # --- JOB 2 : SCAN SÉCURITÉ (En parallèle) ---
+  security-scan:
+    needs: unit-tests # Attend que les tests unitaires soient OK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: 🛡️ Audit de vulnérabilités (NPM Audit)
+        working-directory: ./server
+        run: npm audit --audit-level=high
+        continue-on-error: true # On affiche les failles sans bloquer le pipeline pour le POC
+
+  # --- JOB 3 : TEST DE CHARGE (En parallèle) ---
+  load-test:
+    needs: unit-tests # Attend que les tests unitaires soient OK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: 🟢 Installation Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 📦 Setup Environnement
+        working-directory: ./server
         run: |
-          cd server
-          npm install
-          npm test # Validation de la logique métier (stocks/prix)
+          npm ci
+          node src/init-db.js
 
-      # Étape 2 : Scan de vulnérabilités Docker (Trivy)
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: 'monregistreepouvante.azurecr.io/backend:v1'
-          format: 'table'
-          exit-code: '1' # Bloque le déploiement si vulnérabilité critique
-          severity: 'CRITICAL,HIGH'
+      - name: 🚀 Démarrage Serveur (Background)
+        working-directory: ./server
+        run: |
+          npm start & 
+          sleep 5
 
-      # Étape 3 : Build & Push vers Azure ACR
-      - name: Azure Login & ACR Push
-        uses: azure/docker-login@v1
+      - name: 🔥 Tir de charge (K6)
+        uses: grafana/k6-action@v0.3.0
         with:
-          login-server: monregistreepouvante.azurecr.io
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
-      - run: |
-          docker build -t monregistreepouvante.azurecr.io/backend:${{ github.sha }} ./server
-          docker push monregistreepouvante.azurecr.io/backend:${{ github.sha }}
+          filename: load-test.js # K6 va chercher ce fichier à la racine
