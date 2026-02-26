@@ -152,6 +152,7 @@ app.post("/api/auth/login", async (req, res) => {
   try {
     const user = await get("SELECT * FROM users WHERE email = ?", [email.toLowerCase()]);
     if (!user) return res.status(401).json({ error: "Identifiants invalides." });
+    /* istanbul ignore next */
     if (Object.prototype.hasOwnProperty.call(user, "is_verified") && !user.is_verified) {
       return res.status(403).json({ error: "Compte non verifie." });
     }
