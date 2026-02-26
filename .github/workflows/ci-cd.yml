@@ -108,9 +108,9 @@ jobs:
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
           kubectl apply -f k8s/hpa.yaml
-          kubectl apply -f k8s/gke-managed-certificate.yaml
-          kubectl apply -f k8s/gke-frontendconfig.yaml
-          kubectl apply -f k8s/gke-ingress-https.yaml
+          [ -f k8s/gke-managed-certificate.yaml ] && kubectl apply -f k8s/gke-managed-certificate.yaml || echo "Skipping missing k8s/gke-managed-certificate.yaml"
+          [ -f k8s/gke-frontendconfig.yaml ] && kubectl apply -f k8s/gke-frontendconfig.yaml || echo "Skipping missing k8s/gke-frontendconfig.yaml"
+          [ -f k8s/gke-ingress-https.yaml ] && kubectl apply -f k8s/gke-ingress-https.yaml || echo "Skipping missing k8s/gke-ingress-https.yaml"
           if kubectl api-resources --api-group=configuration.konghq.com | grep -q "KongPlugin"; then
             kubectl apply -f k8s/kong-config.yaml
           else
