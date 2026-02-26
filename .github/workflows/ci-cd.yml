@@ -25,6 +25,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -46,7 +48,7 @@ jobs:
         run: npm run lint
 
       - name: Unit and integration tests
-        run: npm test
+        run: npm test -- --coverage --coverageReporters=lcov --coverageReporters=text-summary
 
       - name: Dependency audit (high+)
         run: npm run audit
@@ -82,6 +84,7 @@ jobs:
             -Dsonar.projectName=Projet-indiv
             -Dsonar.sources=server/src,client/src
             -Dsonar.tests=server/tests
+            -Dsonar.javascript.lcov.reportPaths=server/coverage/lcov.info
 
       - name: SonarQube dashboard link
         if: ${{ env.SONAR_ENABLED == 'true' }}
@@ -94,6 +97,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -157,6 +162,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Validate required GitHub secrets
         run: |
