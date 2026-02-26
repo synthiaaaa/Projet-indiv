@@ -13,6 +13,8 @@ env:
   REGISTRY: europe-west9-docker.pkg.dev
   AR_REPO: bazar-api-repo
   SONAR_PROJECT_KEY: synthiaaaa_Projet-indiv
+  SONAR_ORGANIZATION: synthiaaaa
+  SONAR_HOST_URL: https://sonarcloud.io
 
 jobs:
   quality-and-security:
@@ -51,31 +53,32 @@ jobs:
 
       - name: Determine SonarQube availability
         run: |
-          if [ -z "${SONAR_TOKEN}" ] || [ -z "${SONAR_HOST_URL}" ]; then
-            echo "SONAR_TOKEN and SONAR_HOST_URL are required."
+          if [ -z "${SONAR_TOKEN}" ]; then
+            echo "SONAR_TOKEN is required for SonarCloud scan."
             exit 1
           fi
 
           SONAR_VERSION="$(curl -fsSL --max-time 10 "${SONAR_HOST_URL%/}/api/server/version" || true)"
           if [ -z "${SONAR_VERSION}" ] || echo "${SONAR_VERSION}" | grep -qi "<html"; then
-            echo "SONAR_HOST_URL is not a reachable SonarQube API endpoint: ${SONAR_HOST_URL%/}/api/server/version"
+            echo "SonarCloud API is not reachable: ${SONAR_HOST_URL%/}/api/server/version"
             exit 1
           fi
 
           echo "SONAR_ENABLED=true" >> "$GITHUB_ENV"
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_HOST_URL: ${{ env.SONAR_HOST_URL }}
 
       - name: SonarQube Scan
         if: ${{ env.SONAR_ENABLED == 'true' }}
         uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_HOST_URL: ${{ env.SONAR_HOST_URL }}
         with:
           args: >
             -Dsonar.projectKey=${{ env.SONAR_PROJECT_KEY }}
+            -Dsonar.organization=${{ env.SONAR_ORGANIZATION }}
             -Dsonar.projectName=Projet-indiv
             -Dsonar.sources=server/src,client/src
             -Dsonar.tests=server/tests
@@ -83,9 +86,7 @@ jobs:
       - name: SonarQube dashboard link
         if: ${{ env.SONAR_ENABLED == 'true' }}
         run: |
-          echo "SonarQube project: ${SONAR_HOST_URL%/}/dashboard?id=${SONAR_PROJECT_KEY}"
-        env:
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          echo "SonarCloud project: ${SONAR_HOST_URL%/}/summary/new_code?id=${SONAR_PROJECT_KEY}&organization=${SONAR_ORGANIZATION}"
 
   load-test:
     runs-on: ubuntu-latest

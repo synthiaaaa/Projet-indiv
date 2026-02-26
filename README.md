@@ -86,24 +86,21 @@ La cible de production est PostgreSQL managé (migration planifiee).
 - Tests charge: k6 (`load-test.js`, `server/test-charge.js`)
 - Analyse qualite SonarQube (optionnelle, activee uniquement si secrets valides)
 
-### 6.1 Configuration SonarQube (optionnelle)
+### 6.1 Configuration SonarCloud (optionnelle)
 
-Le workflow CI/CD ignore automatiquement SonarQube si les secrets ne sont pas configures, ou si l'URL SonarQube ne repond pas correctement.
+Le workflow CI/CD utilise SonarCloud (`https://sonarcloud.io`) avec l'organisation `synthiaaaa`.
 
 Secrets GitHub a definir (repo `synthiaaaa/Projet-indiv`):
-- `SONAR_HOST_URL`: URL reelle de ton serveur SonarQube (pas une URL exemple)
-- `SONAR_TOKEN`: token utilisateur SonarQube
+- `SONAR_TOKEN`: token utilisateur SonarCloud
 
 Commandes:
 ```bash
-gh secret set SONAR_HOST_URL --body "https://<vrai-sonarqube>" -R synthiaaaa/Projet-indiv
 gh secret set SONAR_TOKEN --body "<ton-token-sonar>" -R synthiaaaa/Projet-indiv
 ```
 
-Verification locale de l'URL SonarQube:
+Verification locale de l'API SonarCloud:
 ```bash
-export SONAR_HOST_URL="https://<vrai-sonarqube>"
-curl -sS "$SONAR_HOST_URL/api/server/version"
+curl -sS "https://sonarcloud.io/api/server/version"
 ```
 La commande doit renvoyer une version (`10.x.x`) et pas une page HTML de redirection.
 
