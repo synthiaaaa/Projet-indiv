@@ -48,8 +48,19 @@ jobs:
       - name: Dependency audit (high+)
         run: npm run audit
 
+      - name: Determine SonarQube availability
+        run: |
+          if [ -n "${SONAR_TOKEN}" ] && [ -n "${SONAR_HOST_URL}" ]; then
+            echo "SONAR_ENABLED=true" >> "$GITHUB_ENV"
+          else
+            echo "SONAR_ENABLED=false" >> "$GITHUB_ENV"
+          fi
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
       - name: SonarQube Scan
-        if: ${{ secrets.SONAR_TOKEN != '' && secrets.SONAR_HOST_URL != '' }}
+        if: ${{ env.SONAR_ENABLED == 'true' }}
         uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -62,7 +73,7 @@ jobs:
             -Dsonar.tests=server/tests
 
       - name: SonarQube skipped notice
-        if: ${{ secrets.SONAR_TOKEN == '' || secrets.SONAR_HOST_URL == '' }}
+        if: ${{ env.SONAR_ENABLED != 'true' }}
         run: echo "SONAR_TOKEN or SONAR_HOST_URL not configured. SonarQube scan skipped."
 
   load-test:
