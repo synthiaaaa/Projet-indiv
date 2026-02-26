@@ -47,7 +47,7 @@ jobs:
         run: npm run audit
 
   build-and-deploy:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.repository == 'synthiaaaa/Projet-indiv'
     needs: quality-and-security
     runs-on: ubuntu-latest
     permissions:
@@ -59,10 +59,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate required GitHub secrets
+        run: |
+          missing=0
+          [ -z "${WIF_PROVIDER}" ] && echo "Missing secret: WIF_PROVIDER" && missing=1
+          [ -z "${WIF_SERVICE_ACCOUNT}" ] && echo "Missing secret: WIF_SERVICE_ACCOUNT" && missing=1
+          [ -z "${GKE_CLUSTER}" ] && echo "Missing secret: GKE_CLUSTER" && missing=1
+          [ -z "${GKE_LOCATION}" ] && echo "Missing secret: GKE_LOCATION" && missing=1
+          if [ "$missing" -ne 0 ]; then
+            echo "One or more required secrets are missing. Configure them in GitHub repository secrets."
+            exit 1
+          fi
+        env:
+          WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }}
+          WIF_SERVICE_ACCOUNT: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          GKE_CLUSTER: ${{ secrets.GKE_CLUSTER }}
+          GKE_LOCATION: ${{ secrets.GKE_LOCATION }}
+
       - name: Auth Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
