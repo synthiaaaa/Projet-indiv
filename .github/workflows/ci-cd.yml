@@ -106,6 +106,10 @@ jobs:
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
           kubectl apply -f k8s/hpa.yaml
-          kubectl apply -f k8s/kong-config.yaml
+          if kubectl api-resources --api-group=configuration.konghq.com | grep -q "KongPlugin"; then
+            kubectl apply -f k8s/kong-config.yaml
+          else
+            echo "Kong CRDs not found, skipping k8s/kong-config.yaml"
+          fi
           kubectl set image deployment/bazar-api bazar-api=${REGISTRY}/${PROJECT_ID}/${AR_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
           kubectl rollout status deployment/bazar-api
