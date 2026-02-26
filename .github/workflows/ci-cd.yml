@@ -109,19 +109,41 @@ jobs:
       - name: Start API locally
         run: |
           nohup node src/server.js > /tmp/bazar-api.log 2>&1 &
-          sleep 5
+          echo $! > /tmp/bazar-api.pid
         working-directory: server
 
+      - name: Wait for API readiness
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:5000/health >/dev/null; then
+              echo "API is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "API did not become ready in time"
+          tail -n 200 /tmp/bazar-api.log || true
+          exit 1
+
       - name: Load test per user (register/login/order)
-        uses: grafana/k6-action@v0.3.0
-        with:
-          filename: load-test.js
+        run: |
+          docker run --rm --network host \
+            -e K6_BASE_URL="${K6_BASE_URL}" \
+            -v "${GITHUB_WORKSPACE}:/work" \
+            grafana/k6 run /work/load-test.js
         env:
-          K6_BASE_URL: http://localhost:5000
+          K6_BASE_URL: http://127.0.0.1:5000
 
       - name: API log tail
         if: always()
         run: tail -n 120 /tmp/bazar-api.log || true
+
+      - name: Stop local API
+        if: always()
+        run: |
+          if [ -f /tmp/bazar-api.pid ]; then
+            kill "$(cat /tmp/bazar-api.pid)" || true
+          fi
 
   build-and-deploy:
     if: github.event_name == 'push' && github.repository == 'synthiaaaa/Projet-indiv'
