@@ -1,98 +1,35 @@
-name: CI/CD DevSecOps - Evil Ed (Horizontal)
-
-on:
-  push:
-    branches: [ main ]
+name: CI/CD DevSecOps - Blockbuster
+on: [push]
 
 jobs:
-  # ──────────────────────────────────────────────
-  # 1️⃣ INSTALL & TEST
-  # ──────────────────────────────────────────────
-  test:
-    name: 🧪 Test & Qualité
+  test-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: NPM Install
+      # Étape 1 : Tests unitaires et Sécurité (SAST)
+      - name: Install dependencies & Test
         run: |
           cd server
           npm install
+          npm test # Validation de la logique métier (stocks/prix)
 
-      - name: Run Tests
-        run: |
-          cd server
-          npm test --detectOpenHandles || echo "Tests terminés"
+      # Étape 2 : Scan de vulnérabilités Docker (Trivy)
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'monregistreepouvante.azurecr.io/backend:v1'
+          format: 'table'
+          exit-code: '1' # Bloque le déploiement si vulnérabilité critique
+          severity: 'CRITICAL,HIGH'
 
-  # ──────────────────────────────────────────────
-  # 2️⃣ NPM SECURITY AUDIT
-  # ──────────────────────────────────────────────
-  security:
-    name: 🔐 Audit NPM
-    runs-on: ubuntu-latest
-    needs: test   # Attend que les tests soient terminés
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Security Audit
-        run: |
-          cd server
-          npm audit --audit-level=high || true
-
-  # ──────────────────────────────────────────────
-  # 3️⃣ BUILD & PUSH DOCKER IMAGE
-  # ──────────────────────────────────────────────
-  build:
-    name: 🐳 Build & Push Docker
-    runs-on: ubuntu-latest
-    needs: security   # Après audit
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Login to ACR
+      # Étape 3 : Build & Push vers Azure ACR
+      - name: Azure Login & ACR Push
         uses: azure/docker-login@v1
         with:
           login-server: monregistreepouvante.azurecr.io
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
-
-      - name: Build & Push Image
-        uses: docker/build-push-action@v4
-        with:
-          context: ./server
-          file: ./server/Dockerfile
-          push: true
-          tags: monregistreepouvante.azurecr.io/backend:latest
-
-  # ──────────────────────────────────────────────
-  # 4️⃣ DEPLOY TO AKS
-  # ──────────────────────────────────────────────
-  deploy:
-    name: 🚀 Deploy to AKS
-    runs-on: ubuntu-latest
-    needs: build   # Après build
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set Kubernetes Context
-        uses: azure/k8s-set-context@v3
-        with:
-          method: kubeconfig
-          kubeconfig: ${{ secrets.KUBECONFIG_DATA }}
-
-      - name: Deploy Manifests
-        uses: azure/k8s-deploy@v4
-        with:
-          manifests: |
-            k8s/deployment.yaml
-            k8s/service.yaml
-          images: |
-            monregistreepouvante.azurecr.io/backend:latest
-
-      - name: Rollout Status
-        run: |
-          kubectl rollout status deployment/backend-epouvante --timeout=60s
+      - run: |
+          docker build -t monregistreepouvante.azurecr.io/backend:${{ github.sha }} ./server
+          docker push monregistreepouvante.azurecr.io/backend:${{ github.sha }}

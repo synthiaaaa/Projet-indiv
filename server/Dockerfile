@@ -1,20 +1,23 @@
-# Image Node stable hébergée par Microsoft
-FROM mcr.microsoft.com/devcontainers/javascript-node:1-20-bullseye
+# Image officielle légère
+FROM node:20-alpine
 
 # Répertoire de travail
 WORKDIR /app
 
-# Copier package.json et package-lock.json
+# Copier dépendances
 COPY package*.json ./
 
-# Installer les dépendances
-RUN npm install --production
+# Installation propre et déterministe
+RUN npm ci --only=production
 
-# Copier le reste du code
+# Copier le code
 COPY . .
 
-# Exposer le port
+# Exposer le bon port
 EXPOSE 5000
 
-# Commande de démarrage
+# Sécurité : utilisateur non-root
+USER node
+
+# Lancer l'application
 CMD ["node", "src/server.js"]

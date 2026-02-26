@@ -3,10 +3,11 @@ kind: Service
 metadata:
   name: backend-epouvante
 spec:
-  type: LoadBalancer
+  type: NodePort
   selector:
     app: backend-epouvante
   ports:
     - protocol: TCP
-      port: 80
+      port: 5000
       targetPort: 5000
+      nodePort: 30001

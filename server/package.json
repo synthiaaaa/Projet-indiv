@@ -8,9 +8,12 @@
     "audit": "npm audit --audit-level=high"
   },
   "dependencies": {
-    "express": "^4.18.2",
     "bcrypt": "^5.1.0",
-    "jsonwebtoken": "^9.0.0"
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "express": "^4.22.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3"
   },
   "devDependencies": {
     "jest": "^29.6.1",

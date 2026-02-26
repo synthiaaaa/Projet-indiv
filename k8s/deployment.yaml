@@ -2,23 +2,18 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend-epouvante
-  labels:
-    app: backend-epouvante
 spec:
-  replicas: 2
+  replicas: 3 # Haute disponibilité (Auto-scaling)
   selector:
     matchLabels:
-      app: backend-epouvante  # NE PAS CHANGER : immutable
+      app: backend-api
   template:
     metadata:
       labels:
-        app: backend-epouvante
+        app: backend-api
     spec:
       containers:
-        - name: backend-epouvante
-          image: monregistreepouvante.azurecr.io/backend:latest
-          ports:
-            - containerPort: 5000
-          env:
-            - name: PORT
-              value: "5000"
+      - name: backend-node
+        image: mon-registre/backend-epouvante:v1
+        ports:
+        - containerPort: 5000

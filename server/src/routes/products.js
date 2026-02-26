@@ -1,30 +1,39 @@
+// server/routes/products.js
 const express = require('express');
 const router = express.Router();
 
 const products = [
   { 
     id: 1, 
-    name: "Figurine - Kakashi Hatake (Lightning)", 
-    type: "Figurine", 
-    price: 34.99,
-    description: "Figurine détaillée avec effets de foudre.",
-    imageUrl: "https://m.media-amazon.com/images/I/61m9v6S07FL._AC_SL1500_.jpg" 
+    name: "Gremlin de Compagnie", 
+    type: "Créature", 
+    price: 45.00,
+    description: "Attention : ne pas nourrir après minuit. Livré sans eau.",
+    imageUrl: "https://images.unsplash.com/photo-1599839575945-a9e5af0c3fa5?auto=format&fit=crop&w=600&q=80"
   },
   { 
     id: 2, 
-    name: "Jeu de Plateau - Labyrinthe", 
-    type: "Jeu de Société", 
-    price: 29.90,
-    description: "Le classique jeu de chasse aux trésors dans un labyrinthe mouvant.",
-    imageUrl: "https://m.media-amazon.com/images/I/91Nms6Wz23L._AC_SL1500_.jpg"
+    name: "Citrouille Rigolarde", 
+    type: "Déco", 
+    price: 19.90,
+    description: "Une lanterne qui raconte des blagues nulles quand on passe devant.",
+    imageUrl: "https://images.unsplash.com/photo-1509557965875-b88c97052f0e?auto=format&fit=crop&w=600&q=80"
   },
   { 
     id: 3, 
-    name: "Comics - Les Chroniques de l'Effroi", 
-    type: "Bande Dessinée", 
-    price: 22.50,
-    description: "BD exclusive Evil Ed.",
-    imageUrl: "https://images.unsplash.com/photo-1588497859490-85d1c17db96d?w=500"
+    name: "Crâne 'Memento Mori'", 
+    type: "Accessoire", 
+    price: 29.99,
+    description: "Idéal pour décorer votre crypte ou pour jouer Hamlet.",
+    imageUrl: "https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?auto=format&fit=crop&w=600&q=80"
+  },
+  {
+    id: 4,
+    name: "Bonbons 'Yeux Gluants'",
+    type: "Friandise",
+    price: 5.50,
+    description: "Ils vous regardent pendant que vous les mangez. Goût Fraise.",
+    imageUrl: "https://images.unsplash.com/photo-1633519783686-e8d1973b0610?auto=format&fit=crop&w=600&q=80"
   }
 ];
 
