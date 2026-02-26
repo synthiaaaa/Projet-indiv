@@ -85,7 +85,8 @@ jobs:
 
       - name: SonarQube skipped notice
         if: ${{ env.SONAR_ENABLED != 'true' }}
-        run: echo "SonarQube scan skipped: ${SONAR_SKIP_REASON}"
+        run: |
+          echo "SonarQube scan skipped: ${SONAR_SKIP_REASON}"
 
   load-test:
     runs-on: ubuntu-latest
