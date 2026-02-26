@@ -1,5 +1,15 @@
 const request = require("supertest");
 const { app } = require("../src/server");
+const db = require("../src/database");
+
+function dbGet(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      resolve(row);
+    });
+  });
+}
 
 describe("Authentication and JWT security", () => {
   it("rejects protected endpoint when token is missing", async () => {
@@ -19,11 +29,10 @@ describe("Authentication and JWT security", () => {
     });
     expect([201, 409]).toContain(registerRes.statusCode);
 
-    if (registerRes.statusCode === 201 && registerRes.body.verificationCode) {
-      await request(app).post("/api/auth/verify").send({
-        email,
-        code: registerRes.body.verificationCode,
-      });
+    if (registerRes.statusCode === 201) {
+      const userRow = await dbGet("SELECT id, email FROM users WHERE email = ?", [email]);
+      expect(userRow).toBeDefined();
+      expect(userRow.email).toBe(email);
     }
 
     const loginRes = await request(app).post("/api/auth/login").send({ email, password });
@@ -38,5 +47,12 @@ describe("Authentication and JWT security", () => {
 
     expect(res.statusCode).toBe(201);
     expect(res.body.orderId).toBeDefined();
+
+    const userRow = await dbGet("SELECT id FROM users WHERE email = ?", [email]);
+    expect(userRow).toBeDefined();
+    const orderRow = await dbGet("SELECT id, user_id, total_price FROM orders WHERE id = ?", [res.body.orderId]);
+    expect(orderRow).toBeDefined();
+    expect(orderRow.user_id).toBe(userRow.id);
+    expect(Number(orderRow.total_price)).toBe(45);
   });
 });

@@ -105,11 +105,28 @@ app.post("/api/auth/register", async (req, res) => {
 
   const hashedPassword = bcrypt.hashSync(password, 10);
 
+  const normalizedEmail = email.toLowerCase();
   try {
-    await run(
-      "INSERT INTO users (prenom, nom, email, password, verification_code, is_verified) VALUES (?, ?, ?, ?, ?, ?)",
-      [prenom, nom, email.toLowerCase(), hashedPassword, "verified", 1]
-    );
+    try {
+      await run(
+        "INSERT INTO users (prenom, nom, email, password, verification_code, is_verified) VALUES (?, ?, ?, ?, ?, ?)",
+        [prenom, nom, normalizedEmail, hashedPassword, "verified", 1]
+      );
+    } catch (err) {
+      const message = String(err.message || "");
+      const legacySchema =
+        message.includes("no column named verification_code") ||
+        message.includes("no column named is_verified");
+      if (!legacySchema) throw err;
+
+      // Backward compatibility for old SQLite schema without verification fields.
+      await run("INSERT INTO users (prenom, nom, email, password) VALUES (?, ?, ?, ?)", [
+        prenom,
+        nom,
+        normalizedEmail,
+        hashedPassword,
+      ]);
+    }
     return res.status(201).json({ message: "Compte cree. Vous pouvez vous connecter." });
   } catch (err) {
     const message = String(err.message || "");

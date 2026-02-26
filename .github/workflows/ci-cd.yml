@@ -12,6 +12,7 @@ env:
   WEB_IMAGE_NAME: bazar-web
   REGISTRY: europe-west9-docker.pkg.dev
   AR_REPO: bazar-api-repo
+  SONAR_PROJECT_KEY: synthiaaaa_Projet-indiv
 
 jobs:
   quality-and-security:
@@ -51,21 +52,17 @@ jobs:
       - name: Determine SonarQube availability
         run: |
           if [ -z "${SONAR_TOKEN}" ] || [ -z "${SONAR_HOST_URL}" ]; then
-            echo "SONAR_ENABLED=false" >> "$GITHUB_ENV"
-            echo "SONAR_SKIP_REASON=SONAR_TOKEN or SONAR_HOST_URL not configured" >> "$GITHUB_ENV"
-            exit 0
+            echo "SONAR_TOKEN and SONAR_HOST_URL are required."
+            exit 1
           fi
 
-          # Fail-fast on invalid Sonar URL (redirect/login HTML instead of Sonar API).
           SONAR_VERSION="$(curl -fsSL --max-time 10 "${SONAR_HOST_URL%/}/api/server/version" || true)"
           if [ -z "${SONAR_VERSION}" ] || echo "${SONAR_VERSION}" | grep -qi "<html"; then
-            echo "SONAR_ENABLED=false" >> "$GITHUB_ENV"
-            echo "SONAR_SKIP_REASON=SONAR_HOST_URL is not a reachable SonarQube API endpoint" >> "$GITHUB_ENV"
-            exit 0
+            echo "SONAR_HOST_URL is not a reachable SonarQube API endpoint: ${SONAR_HOST_URL%/}/api/server/version"
+            exit 1
           fi
 
           echo "SONAR_ENABLED=true" >> "$GITHUB_ENV"
-          echo "SONAR_SKIP_REASON=" >> "$GITHUB_ENV"
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
@@ -78,15 +75,17 @@ jobs:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         with:
           args: >
-            -Dsonar.projectKey=synthiaaaa_Projet-indiv
+            -Dsonar.projectKey=${{ env.SONAR_PROJECT_KEY }}
             -Dsonar.projectName=Projet-indiv
             -Dsonar.sources=server/src,client/src
             -Dsonar.tests=server/tests
 
-      - name: SonarQube skipped notice
-        if: ${{ env.SONAR_ENABLED != 'true' }}
+      - name: SonarQube dashboard link
+        if: ${{ env.SONAR_ENABLED == 'true' }}
         run: |
-          echo "SonarQube scan skipped: ${SONAR_SKIP_REASON}"
+          echo "SonarQube project: ${SONAR_HOST_URL%/}/dashboard?id=${SONAR_PROJECT_KEY}"
+        env:
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
   load-test:
     runs-on: ubuntu-latest
