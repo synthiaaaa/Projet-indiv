@@ -5,7 +5,14 @@ metadata:
   labels:
     app: bazar-api
 spec:
+  progressDeadlineSeconds: 900
+  revisionHistoryLimit: 5
   replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
   selector:
     matchLabels:
       app: bazar-api

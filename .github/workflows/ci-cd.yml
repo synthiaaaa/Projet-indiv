@@ -103,6 +103,8 @@ jobs:
 
       - name: Deploy Kubernetes resources
         run: |
+          set -euo pipefail
+
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
           kubectl apply -f k8s/hpa.yaml
@@ -111,5 +113,14 @@ jobs:
           else
             echo "Kong CRDs not found, skipping k8s/kong-config.yaml"
           fi
+
           kubectl set image deployment/bazar-api bazar-api=${REGISTRY}/${PROJECT_ID}/${AR_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
-          kubectl rollout status deployment/bazar-api
+          if ! kubectl rollout status deployment/bazar-api --timeout=300s; then
+            echo "Rollout failed. Collecting diagnostics..."
+            kubectl get deploy,rs,pods,svc,ingress,hpa -o wide || true
+            kubectl describe deployment bazar-api || true
+            kubectl get events --sort-by=.metadata.creationTimestamp | tail -n 120 || true
+            kubectl describe pods -l app=bazar-api || true
+            kubectl logs -l app=bazar-api --tail=200 || true
+            exit 1
+          fi

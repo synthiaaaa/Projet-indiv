@@ -1,156 +1,130 @@
-# Projet individuel - Le Bazar de l'Etrange
+# Rapport de Projet Individuel - Version GCP
 
-POC full-stack deploye sur Google Cloud (GKE), orchestre via Kong, avec pipeline CI/CD DevSecOps GitHub Actions.
+Realisee par: Synthia KABANGO  
+Promotion: MAALSI BNP M2  
+Sujet: Modernisation du Systeme d'Information - La Petite Maison de l'Epouvante
 
-## 1) Protocole d'experimentation en bac a sable
-
-Technologies testees:
-- Frontend: React (Vite)
-- Backend: Node.js + Express
-- Base de donnees: SQLite (POC)
-- Conteneurisation: Docker
-- Orchestration: Kubernetes (GKE) + Kong Ingress
+Ce repository implemente le POC "Version Blockbuster" en conservant une cible Google Cloud:
+- Execution: Google Kubernetes Engine (GKE)
+- Registry: Artifact Registry
 - CI/CD: GitHub Actions
+- Orchestration API: Kong (si CRDs presentes)
 
-Interactions testees:
-- Frontend -> API `/api/products`, `/api/auth/*`, `/api/orders`
-- Kong -> routage vers service `bazar-api`
-- API -> DB SQLite
-- Pipeline -> build image GCR -> deploy manifests GKE
+## 1. Besoins et attributs qualite (ISO 25010)
 
-Difficultes rencontrees:
-- Incoherences de routes (`/api/catalogue` vs `/api/products`)
-- Incoherences manifests (labels/services differents)
-- Tests non aligns avec les routes et exports serveur
+### 1.1 Besoins fonctionnels implementes
+- Catalogue dynamique produits: `GET /api/products`
+- Inscription / verification / connexion utilisateur: `/api/auth/*`
+- Commande protegee JWT: `POST /api/orders`
+- Espace communautaire front (base POC)
 
-Resultat:
-- Architecture stabilisee, routes coherentes, tests automatises, deploiement GKE/Kong versionnable.
+### 1.2 Besoins non fonctionnels
+- Securite: Helmet, bcryptjs, JWT, secrets Kubernetes
+- Fiabilite: health/readiness probes + deployment multi-replicas
+- Maintenabilite: separation frontend/backend + tests + pipeline
+- Portabilite: conteneurisation Docker + Kubernetes
 
-## 2) POC technique et faisabilite architecture
+## 2. Démarche DevSecOps
 
-Points cles validates:
-- Decoupage applicatif: client et API separes
-- Communication interservice: Ingress Kong -> Service -> Deployment
-- Securite: Helmet, JWT, mots de passe hashés (bcryptjs), probes health/readiness
-- Hebergement managé: GKE
-- Orchestration: Kubernetes + Kong
-- Scalabilite: HPA (`k8s/hpa.yaml`)
+Pipeline GitHub Actions:
+1. `npm ci`
+2. lint
+3. tests
+4. audit des dependances
+5. build/push image vers Artifact Registry
+6. deploiement GKE
 
-Fichiers d'architecture:
+Le pipeline bloque le deploiement si la qualite/sécurité echoue.
+
+Fichier principal: `.github/workflows/ci-cd.yml`
+
+## 3. Architecture existante et cible
+
+### 3.1 Architecture cible POC (GCP)
+- Frontend React/Vite
+- Backend Node.js/Express
+- DB SQLite (POC)
+- Kubernetes (GKE) + Service + HPA
+- Ingress Kong optionnel (active uniquement si CRDs Kong presentes)
+
+### 3.2 Note de trajectoire
+Le rapport identifie SQLite comme limite de scalabilite.  
+La cible de production est PostgreSQL managé (migration planifiee).
+
+## 4. Etude technologique retenue
+
+- Frontend: React + Vite
+- Backend: Node.js + Express
+- Authentification: JWT
+- CI/CD: GitHub Actions
+- Hebergement: GKE (Google Cloud)
+
+## 5. Environnement d'execution et deploiement
+
+## 5.1 Prerequis
+- Projet GCP: `project-6ead5f33-15fd-443c-817`
+- Cluster GKE operationnel
+- Repository Artifact Registry: `bazar-api-repo` (region `europe-west9`)
+- Secrets GitHub Actions:
+  - `WIF_PROVIDER`
+  - `WIF_SERVICE_ACCOUNT`
+  - `GKE_CLUSTER`
+  - `GKE_LOCATION`
+- Secret Kubernetes:
+  - `bazar-api-secrets` avec `jwt_secret`, `email_user`, `email_pass`
+
+### 5.2 Manifests
 - `k8s/deployment.yaml`
 - `k8s/service.yaml`
 - `k8s/hpa.yaml`
-- `k8s/kong-config.yaml`
+- `k8s/kong-config.yaml` (si Kong installe)
 
-## 3) Fonctionnalite metier POC
+## 6. Strategie de tests
 
-Fonctionnalites implementees:
-- Consultation du catalogue (`GET /api/products`)
-- Inscription, verification, connexion (`/api/auth/register`, `/api/auth/verify`, `/api/auth/login`)
-- Creation de commande securisee JWT (`POST /api/orders`)
+- Tests API integration: Jest + Supertest
+- Tests securite acces route protegee JWT
+- Tests charge: k6 (`load-test.js`, `server/test-charge.js`)
 
-## 4) Livraison continue DevSecOps (GitHub -> GCP)
+## 7. Securite DevSecOps
 
-Workflow:
-- Qualite/Securite: lint + tests + audit npm
-- Build image: Docker -> `gcr.io/project-6ead5f33-15fd-443c-817/bazar-api:<sha>`
-- Deploiement: `kubectl apply` manifests + `kubectl set image`
+Mesures appliquees:
+- Hash de mot de passe bcryptjs
+- JWT pour routes protegees
+- Headers securite via Helmet
+- Scan dependances (`npm audit`)
+- Secrets hors code via Kubernetes/GitHub secrets
 
-Fichier:
-- `.github/workflows/ci-cd.yml`
+## 8. Gestion des risques
 
-Schema simplifie:
-1. Push GitHub
-2. `npm ci`, lint, tests, audit
-3. Build/push image GCR
-4. Deploy GKE
-5. Routage Kong
+Risque principal identifie:
+- Limite de concurrence SQLite pour la phase Blockbuster
 
-## 5) Competences equipe et action de formation
+Plan de remediation:
+- Migration vers PostgreSQL managé
+- Maintien architecture conteneurisee pour scalabilite
 
-Competences recensees:
-- Dev backend Node/Express
-- Kubernetes de base
-- Pipeline GitHub Actions
+## 9. Traitement de l'erreur "deployment exceeded its progress deadline"
 
-Expertises a renforcer:
-- Securite applicative (OWASP API Top 10)
-- Observabilite (SLO/SLI, metriques Prometheus)
-- Policy as code (OPA/Gatekeeper)
+Les correctifs appliques dans ce repo:
+- Passage Artifact Registry (fin de dependance `gcr.io`)
+- Tag image immuable (digest) dans les manifests
+- Rollout CI avec timeout explicite et diagnostics automatiques
+- Deployment K8s durci:
+  - `progressDeadlineSeconds: 900`
+  - strategie rolling update explicite
 
-Action de formation proposee:
-- Parcours court "Kubernetes Security + DevSecOps CI/CD" (2 jours) avec atelier pratique sur ce repo.
+## 10. Commandes utiles
 
-## 6) Environnement managé + disponibilite + montee en charge
-
-Disponibilite:
-- `replicas: 2` sur le deployment
-- `livenessProbe` et `readinessProbe`
-
-Montee en charge:
-- Horizontal Pod Autoscaler CPU 70% (`k8s/hpa.yaml`)
-- Test de charge k6 (`load-test.js`, `server/test-charge.js`)
-
-## 7) Indicateurs qualite logicielle (>=4)
-
-Expose via `GET /metrics`:
-- Nombre d'utilisateurs
-- Nombre de produits
-- Nombre de commandes
-- Chiffre d'affaires cumule
-
-Objectifs qualite couverts:
-- Fonctionnalite: endpoints metier
-- Performance: seuil k6 p95 < 500ms
-- Fiabilite: health/readiness probes
-- Maintenabilite: pipeline CI/CD + tests automatises
-
-## 8) Processus de test formalise
-
-Types de tests:
-- Integration API (Jest + Supertest)
-- Tests securite JWT (acces protege)
-- Test de charge (k6)
-
-Fichiers:
-- `server/tests/products.test.js`
-- `server/tests/auth.test.js`
-- `server/api.test.js`
-- `load-test.js`
-
-Execution:
 ```bash
-cd server
-npm test
-```
+# Build local (optionnel)
+docker build -t europe-west9-docker.pkg.dev/project-6ead5f33-15fd-443c-817/bazar-api-repo/bazar-api:local ./server
 
-## 9) Plan de remediation securite (priorise)
-
-Risques prioritaires:
-1. Fuite de secrets (JWT, SMTP)
-2. Surface d'attaque API
-3. Vuln libs npm
-
-Actions implementees:
-- Bonnes pratiques #1: gestion des secrets via `Secret` Kubernetes (pas de secret en dur dans les manifests)
-- Bonnes pratiques #2: container non-root + drop capabilities + probes de sante
-- Bonnes pratiques #3: audit npm dans pipeline
-- Bonnes pratiques #4: authentification JWT obligatoire sur creation de commande
-
-## 10) Deploiement
-
-Prerequis:
-- Cluster GKE
-- Kong Ingress Controller installe
-- Secrets GitHub (`GCP_SA_KEY`, `GKE_CLUSTER`, `GKE_LOCATION`)
-- Secret K8s `bazar-api-secrets` avec `jwt_secret`, `email_user`, `email_pass`
-
-Commande locale:
-```bash
-gcloud builds submit --tag gcr.io/project-6ead5f33-15fd-443c-817/bazar-api ./server
+# Deploy manifests
 kubectl apply -f k8s/deployment.yaml
 kubectl apply -f k8s/service.yaml
 kubectl apply -f k8s/hpa.yaml
-kubectl apply -f k8s/kong-config.yaml
+
+# Rollout status
+kubectl rollout status deployment/bazar-api --timeout=300s
+kubectl get pods -l app=bazar-api
 ```
-Test12
