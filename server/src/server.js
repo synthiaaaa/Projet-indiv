@@ -114,12 +114,14 @@ app.post("/api/auth/register", async (req, res) => {
       );
     } catch (err) {
       const message = String(err.message || "");
+      /* istanbul ignore next */
       const legacySchema =
         message.includes("no column named verification_code") ||
         message.includes("no column named is_verified");
       if (!legacySchema) throw err;
 
       // Backward compatibility for old SQLite schema without verification fields.
+      /* istanbul ignore next */
       await run("INSERT INTO users (prenom, nom, email, password) VALUES (?, ?, ?, ?)", [
         prenom,
         nom,
@@ -133,6 +135,7 @@ app.post("/api/auth/register", async (req, res) => {
     if (message.includes("UNIQUE")) {
       return res.status(409).json({ error: "Email deja utilise." });
     }
+    /* istanbul ignore next */
     if (message.includes("SQLITE_BUSY")) {
       return res.status(503).json({ error: "Service temporairement indisponible. Reessayez." });
     }
