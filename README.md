@@ -153,4 +153,4 @@ kubectl apply -f k8s/service.yaml
 kubectl apply -f k8s/hpa.yaml
 kubectl apply -f k8s/kong-config.yaml
 ```
-Test1
+Test12
