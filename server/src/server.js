@@ -108,7 +108,7 @@ app.post("/api/auth/register", async (req, res) => {
   try {
     await run(
       "INSERT INTO users (prenom, nom, email, password, verification_code, is_verified) VALUES (?, ?, ?, ?, ?, ?)",
-      [prenom, nom, email.toLowerCase(), hashedPassword, null, 1]
+      [prenom, nom, email.toLowerCase(), hashedPassword, "verified", 1]
     );
     return res.status(201).json({ message: "Compte cree. Vous pouvez vous connecter." });
   } catch (err) {
@@ -132,7 +132,9 @@ app.post("/api/auth/login", async (req, res) => {
   try {
     const user = await get("SELECT * FROM users WHERE email = ?", [email.toLowerCase()]);
     if (!user) return res.status(401).json({ error: "Identifiants invalides." });
-    if (!user.is_verified) return res.status(403).json({ error: "Compte non verifie." });
+    if (Object.prototype.hasOwnProperty.call(user, "is_verified") && !user.is_verified) {
+      return res.status(403).json({ error: "Compte non verifie." });
+    }
 
     const ok = bcrypt.compareSync(password, user.password);
     if (!ok) return res.status(401).json({ error: "Identifiants invalides." });

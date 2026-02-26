@@ -30,6 +30,20 @@ function seedProducts() {
   });
 }
 
+function ensureUsersSchemaCompatibility() {
+  db.all("PRAGMA table_info(users)", (err, rows) => {
+    if (err) return;
+    const columns = new Set((rows || []).map((r) => r.name));
+
+    if (!columns.has("verification_code")) {
+      db.run("ALTER TABLE users ADD COLUMN verification_code TEXT");
+    }
+    if (!columns.has("is_verified")) {
+      db.run("ALTER TABLE users ADD COLUMN is_verified INTEGER DEFAULT 1");
+    }
+  });
+}
+
 db.serialize(() => {
   db.run("PRAGMA foreign_keys = ON");
 
@@ -62,6 +76,7 @@ db.serialize(() => {
     FOREIGN KEY(user_id) REFERENCES users(id)
   )`);
 
+  ensureUsersSchemaCompatibility();
   seedProducts();
 });
 
