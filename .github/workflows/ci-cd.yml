@@ -85,6 +85,7 @@ jobs:
             -Dsonar.sources=server/src,client/src
             -Dsonar.tests=server/tests
             -Dsonar.javascript.lcov.reportPaths=server/coverage/lcov.info
+            -Dsonar.coverage.exclusions=server/src/server.js
 
       - name: SonarQube dashboard link
         if: ${{ env.SONAR_ENABLED == 'true' }}
