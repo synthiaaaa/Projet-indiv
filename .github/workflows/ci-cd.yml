@@ -9,7 +9,8 @@ on:
 env:
   PROJECT_ID: project-6ead5f33-15fd-443c-817
   IMAGE_NAME: bazar-api
-  REGISTRY: gcr.io
+  REGISTRY: europe-west9-docker.pkg.dev
+  AR_REPO: bazar-api-repo
 
 jobs:
   quality-and-security:
@@ -85,13 +86,13 @@ jobs:
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure Docker auth for GCR
-        run: gcloud auth configure-docker --quiet
+      - name: Configure Docker auth for Artifact Registry
+        run: gcloud auth configure-docker europe-west9-docker.pkg.dev --quiet
 
       - name: Build and push image
         run: |
-          docker build -t ${REGISTRY}/${PROJECT_ID}/${IMAGE_NAME}:${IMAGE_TAG} ./server
-          docker push ${REGISTRY}/${PROJECT_ID}/${IMAGE_NAME}:${IMAGE_TAG}
+          docker build -t ${REGISTRY}/${PROJECT_ID}/${AR_REPO}/${IMAGE_NAME}:${IMAGE_TAG} ./server
+          docker push ${REGISTRY}/${PROJECT_ID}/${AR_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
 
       - name: Get GKE credentials
         uses: google-github-actions/get-gke-credentials@v2
@@ -106,5 +107,5 @@ jobs:
           kubectl apply -f k8s/service.yaml
           kubectl apply -f k8s/hpa.yaml
           kubectl apply -f k8s/kong-config.yaml
-          kubectl set image deployment/bazar-api bazar-api=${REGISTRY}/${PROJECT_ID}/${IMAGE_NAME}:${IMAGE_TAG}
+          kubectl set image deployment/bazar-api bazar-api=${REGISTRY}/${PROJECT_ID}/${AR_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
           kubectl rollout status deployment/bazar-api

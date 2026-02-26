@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: bazar-api
-          image: gcr.io/project-6ead5f33-15fd-443c-817/bazar-api:latest
+          image: europe-west9-docker.pkg.dev/project-6ead5f33-15fd-443c-817/bazar-api-repo/bazar-api:latest
           ports:
             - containerPort: 5000
           env:
