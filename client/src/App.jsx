@@ -16,7 +16,7 @@ function App() {
   const [authMode, setAuthMode] = useState('login'); 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [verifyCode, setVerifyCode] = useState(''); 
+  const [authLoading, setAuthLoading] = useState(false);
 
   const [posts, setPosts] = useState([
     { author: "VampireDu93", content: "Le dernier numéro d'Evil Ed sur les films de zombies est incroyable 🧟‍♂️ !" },
@@ -40,29 +40,50 @@ function App() {
 
   const handleAuth = async (e) => {
     e.preventDefault();
+    if (authLoading) return;
+
     let endpoint = '';
     let payload = {};
 
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPrenom = prenom.trim();
+    const cleanNom = nom.trim();
+
     if (authMode === 'login') {
       endpoint = '/api/auth/login';
-      payload = { email, password };
+      payload = { email: cleanEmail, password };
     } else if (authMode === 'register') {
+      if (!validatePassword(password)) {
+        alert("⚠️ Mot de passe invalide : 8 caractères min, 1 majuscule et 1 symbole spécial.");
+        return;
+      }
       endpoint = '/api/auth/register';
-      payload = { prenom, nom, email, password };
-    } else if (authMode === 'verify') {
-      endpoint = '/api/auth/verify';
-      payload = { email, code: verifyCode };
+      payload = { prenom: cleanPrenom, nom: cleanNom, email: cleanEmail, password };
     }
     
     try {
+      setAuthLoading(true);
       const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      const data = await res.json();
+      const raw = await res.text();
+      let data = {};
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch (_err) {
+        data = { error: raw || 'Réponse invalide du serveur.' };
+      }
       
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) {
+        if (authMode === 'register' && res.status === 409) {
+          alert("ℹ️ Cet email existe déjà. Connecte-toi directement.");
+          setAuthMode('login');
+          return;
+        }
+        throw new Error(data.error || "Erreur serveur.");
+      }
       
       if (authMode === 'login') {
         setToken(data.token); 
@@ -70,15 +91,13 @@ function App() {
         alert("👻 Connexion fantomatique réussie !");
         setCurrentView('catalogue');
       } else if (authMode === 'register') {
-        alert("🦇 Une chauve-souris vous a apporté un code par email ! (Regardez le terminal VS Code pour le copier)");
-        setAuthMode('verify'); 
-      } else if (authMode === 'verify') {
-        alert("🩸 " + data.message);
-        setAuthMode('login'); 
-        setVerifyCode(''); 
+        alert("🩸 Compte créé ! Connecte-toi maintenant.");
+        setAuthMode('login');
       }
     } catch (err) {
-      alert("❌ Erreur Maléfique : " + err.message);
+      alert("❌ Erreur Maléfique : " + (err.message || "Erreur serveur."));
+    } finally {
+      setAuthLoading(false);
     }
   };
 
@@ -190,8 +209,7 @@ function App() {
       {currentView === 'auth' && (
         <div className="page-container">
           <h2>
-            {authMode === 'login' ? '🔑 Entrer dans le Crypt' : 
-             authMode === 'register' ? '🩸 Signer le Pacte' : '🧙‍♂️ Incantation Finale'}
+            {authMode === 'login' ? '🔑 Entrer dans le Crypt' : '🩸 Signer le Pacte'}
           </h2>
           
           <form className="checkout-form" onSubmit={handleAuth}>
@@ -203,43 +221,31 @@ function App() {
               </>
             )}
 
-            {authMode === 'verify' && (
+            <>
               <div className="form-group">
-                <label style={{color: '#ff7518', fontWeight: 'bold'}}>Code d'invocation (reçu par email)</label>
-                <input type="text" required value={verifyCode} onChange={(e)=>setVerifyCode(e.target.value)} placeholder="Ex: 123456" style={{border: '2px solid #ff7518', textAlign: 'center', fontSize: '1.2rem'}}/>
-                <p style={{fontSize: '0.8rem', color: '#aaa', marginTop: '5px'}}>ℹ️ Regardez le terminal du serveur Node.js.</p>
+                <label>Email Spectral</label>
+                <input type="email" required value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="fantome@cimetiere.com" />
               </div>
-            )}
+              <div className="form-group">
+                <label>Mot de Passe Secret</label>
+                <input type="password" required value={password} onChange={(e)=>setPassword(e.target.value)} placeholder="********" 
+                  style={{ borderColor: (password && !validatePassword(password) && authMode === 'register') ? 'red' : '#555' }}
+                />
+                {authMode === 'register' && password && !validatePassword(password) && (
+                    <p style={{color: 'red', fontSize: '0.8rem', marginTop: '5px'}}>
+                        ⚠️ 8 caractères min, 1 majuscule, 1 symbole spécial (!@#$%) requis.
+                    </p>
+                )}
+              </div>
+            </>
 
-            {authMode !== 'verify' && (
-              <>
-                <div className="form-group">
-                  <label>Email Spectral</label>
-                  <input type="email" required value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="fantome@cimetiere.com" />
-                </div>
-                <div className="form-group">
-                  <label>Mot de Passe Secret</label>
-                  <input type="password" required value={password} onChange={(e)=>setPassword(e.target.value)} placeholder="********" 
-                    style={{ borderColor: (password && !validatePassword(password) && authMode === 'register') ? 'red' : '#555' }}
-                  />
-                  {authMode === 'register' && password && !validatePassword(password) && (
-                      <p style={{color: 'red', fontSize: '0.8rem', marginTop: '5px'}}>
-                          ⚠️ 8 caractères min, 1 majuscule, 1 symbole spécial (!@#$%) requis.
-                      </p>
-                  )}
-                </div>
-              </>
-            )}
-
-            <button type="submit" className="btn-pay">
-              {authMode === 'login' ? 'Ouvrir la porte' : authMode === 'register' ? "Rejoindre l'au-delà" : "Valider le sortilège"}
+            <button type="submit" className="btn-pay" disabled={authLoading}>
+              {authLoading ? "Patiente..." : (authMode === 'login' ? 'Ouvrir la porte' : "Rejoindre l'au-delà")}
             </button>
 
-            {authMode !== 'verify' && (
-              <p style={{textAlign: 'center', cursor: 'pointer', color: '#39ff14', marginTop: '15px'}} onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}>
-                {authMode === 'login' ? "💀 Pas encore mort ? Inscris-toi !" : "🦇 Déjà un compte ? Connecte-toi"}
-              </p>
-            )}
+            <p style={{textAlign: 'center', cursor: 'pointer', color: '#39ff14', marginTop: '15px'}} onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}>
+              {authMode === 'login' ? "💀 Pas encore mort ? Inscris-toi !" : "🦇 Déjà un compte ? Connecte-toi"}
+            </p>
           </form>
         </div>
       )}

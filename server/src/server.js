@@ -3,15 +3,11 @@ const cors = require("cors");
 const helmet = require("helmet");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const nodemailer = require("nodemailer");
 const db = require("./database");
 
 const app = express();
 const PORT = Number(process.env.PORT || 5000);
 const JWT_SECRET = process.env.JWT_SECRET || "change-me-in-production";
-const EMAIL_USER = process.env.EMAIL_USER;
-const EMAIL_PASS = process.env.EMAIL_PASS;
-const EMAIL_ENABLED = Boolean(EMAIL_USER && EMAIL_PASS);
 
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
@@ -41,28 +37,6 @@ function all(sql, params = []) {
       if (err) return reject(err);
       resolve(rows);
     });
-  });
-}
-
-function createVerificationCode() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
-async function sendVerificationEmail(to, code, prenom) {
-  if (!EMAIL_ENABLED) return;
-
-  const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: { user: EMAIL_USER, pass: EMAIL_PASS },
-  });
-
-  await transporter.sendMail({
-    from: `"Le Bazar de l'Etrange" <${EMAIL_USER}>`,
-    to,
-    subject: "Validation de votre compte",
-    text: `Bonjour ${prenom}, votre code de verification est: ${code}`,
   });
 }
 
@@ -129,44 +103,22 @@ app.post("/api/auth/register", async (req, res) => {
     return res.status(400).json({ error: "Mot de passe trop faible." });
   }
 
-  const verificationCode = createVerificationCode();
   const hashedPassword = bcrypt.hashSync(password, 10);
 
   try {
     await run(
       "INSERT INTO users (prenom, nom, email, password, verification_code, is_verified) VALUES (?, ?, ?, ?, ?, ?)",
-      [prenom, nom, email.toLowerCase(), hashedPassword, verificationCode, EMAIL_ENABLED ? 0 : 1]
+      [prenom, nom, email.toLowerCase(), hashedPassword, null, 1]
     );
-
-    await sendVerificationEmail(email, verificationCode, prenom);
-    return res.status(201).json({
-      message: EMAIL_ENABLED ? "Compte cree. Verifiez votre email." : "Compte cree.",
-      verificationCode: process.env.NODE_ENV === "test" || !EMAIL_ENABLED ? verificationCode : undefined,
-    });
+    return res.status(201).json({ message: "Compte cree. Vous pouvez vous connecter." });
   } catch (err) {
-    if (String(err.message || "").includes("UNIQUE")) {
+    const message = String(err.message || "");
+    if (message.includes("UNIQUE")) {
       return res.status(409).json({ error: "Email deja utilise." });
     }
-    return res.status(500).json({ error: "Erreur serveur." });
-  }
-});
-
-app.post("/api/auth/verify", async (req, res) => {
-  const { email, code } = req.body || {};
-  if (!email || !code) {
-    return res.status(400).json({ error: "Email et code requis." });
-  }
-
-  try {
-    const user = await get("SELECT id, verification_code FROM users WHERE email = ?", [email.toLowerCase()]);
-    if (!user) return res.status(404).json({ error: "Utilisateur introuvable." });
-    if (String(user.verification_code) !== String(code)) {
-      return res.status(400).json({ error: "Code invalide." });
+    if (message.includes("SQLITE_BUSY")) {
+      return res.status(503).json({ error: "Service temporairement indisponible. Reessayez." });
     }
-
-    await run("UPDATE users SET is_verified = 1, verification_code = NULL WHERE id = ?", [user.id]);
-    return res.status(200).json({ message: "Compte verifie." });
-  } catch (_err) {
     return res.status(500).json({ error: "Erreur serveur." });
   }
 });
