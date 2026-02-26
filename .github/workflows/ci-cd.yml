@@ -114,6 +114,12 @@ jobs:
             echo "Kong CRDs not found, skipping k8s/kong-config.yaml"
           fi
 
+          if ! kubectl get secret bazar-api-secrets >/dev/null 2>&1; then
+            echo "Missing required Kubernetes secret: bazar-api-secrets (namespace: default)"
+            echo "Create it with keys: jwt_secret, email_user, email_pass"
+            exit 1
+          fi
+
           kubectl set image deployment/bazar-api bazar-api=${REGISTRY}/${PROJECT_ID}/${AR_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
           if ! kubectl rollout status deployment/bazar-api --timeout=300s; then
             echo "Rollout failed. Collecting diagnostics..."
