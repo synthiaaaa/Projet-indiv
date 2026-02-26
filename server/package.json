@@ -9,7 +9,6 @@
     "test:load": "node test-charge.js"
   },
   "dependencies": {
-    "bcrypt": "^5.1.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "express": "^4.22.1",
@@ -17,6 +16,9 @@
     "jsonwebtoken": "^9.0.3",
     "nodemailer": "^8.0.1",
     "sqlite3": "^5.1.7"
+  },
+  "overrides": {
+    "tar": "^7.5.8"
   },
   "devDependencies": {
     "jest": "^29.6.1",
